@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" role="img" aria-label="Image coming soon">
+  <rect width="800" height="1000" fill="#F4F4F0"/>
+  <g transform="translate(350, 360)" fill="none">
+    <path d="M22 78V34C22 22 34 14 50 14C66 14 78 22 78 34V78" stroke="#111111" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="50" cy="26" r="3.5" fill="#C5A059"/>
+    <path d="M40 72V36H54C60.0751 36 65 40.4772 65 46.5C65 52.5228 60.0751 57 54 57H40M52 57L64 72" stroke="#111111" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="400" y="520" text-anchor="middle" fill="#111111" font-family="'Cormorant Garamond', Georgia, serif" font-size="22" font-weight="600" letter-spacing="8">RIFAQ ATELIER</text>
+  <text x="400" y="560" text-anchor="middle" fill="#6B6B66" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="18" letter-spacing="2">Image coming soon</text>
+</svg>

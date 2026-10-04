@@ -17,9 +17,13 @@ export function PageHeader({
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <p className="eyebrow text-muted-foreground">{eyebrow}</p>
-        <h1 className="mt-1 font-display text-4xl">{title}</h1>
-        {description ? <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{description}</p> : null}
+        <p className="text-xs font-semibold tracking-[0.22em] text-accent uppercase">{eyebrow}</p>
+        <h1 className="mt-1 font-display text-4xl tracking-wide text-foreground">{title}</h1>
+        {description ? (
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        ) : null}
       </div>
       {action}
     </div>
@@ -36,9 +40,9 @@ export function EmptyState({
   action?: { to: string; label: string };
 }) {
   return (
-    <div className="border border-border bg-card p-8">
-      <h2 className="font-display text-2xl">{title}</h2>
-      <p className="mt-2 max-w-xl text-sm text-muted-foreground">{body}</p>
+    <div className="border border-border bg-white p-8">
+      <h2 className="font-display text-2xl tracking-wide text-foreground">{title}</h2>
+      <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">{body}</p>
       {action ? (
         <Button asChild className="mt-5">
           <Link to={action.to}>{action.label}</Link>
@@ -56,10 +60,15 @@ export function LoadingState({
   body: string;
 }) {
   return (
-    <div className="border border-border bg-card p-8" role="status" aria-live="polite" aria-busy="true">
+    <div
+      className="border border-border bg-white p-8"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
       <FrameSpinner className="size-4" />
-      <h2 className="mt-4 font-display text-2xl">{title}</h2>
-      <p className="mt-2 max-w-xl text-sm text-muted-foreground">{body}</p>
+      <h2 className="mt-4 font-display text-2xl tracking-wide text-foreground">{title}</h2>
+      <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">{body}</p>
     </div>
   );
 }
@@ -106,7 +115,12 @@ export function PaginationBar({
         <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
           Previous
         </Button>
-        <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={page >= pages}
+          onClick={() => onPage(page + 1)}
+        >
           Next
         </Button>
       </div>

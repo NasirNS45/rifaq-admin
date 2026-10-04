@@ -1,0 +1,27 @@
+import { BrandMark } from "@/components/BrandMark";
+import { cn } from "@/lib/utils";
+
+/** Elegant stand-in when a catalog image is missing or fails to load. */
+export function ProductImageFallback({
+  className,
+  label = "Image coming soon",
+}: {
+  className?: string;
+  label?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[#F4F4F0] px-2 text-center",
+        className,
+      )}
+      role="img"
+      aria-label={label}
+    >
+      <BrandMark className="h-7 w-7 opacity-70" />
+      <span className="text-[8px] font-medium tracking-[0.2em] text-[#111111] uppercase">
+        RIFAQ ATELIER
+      </span>
+    </span>
+  );
+}

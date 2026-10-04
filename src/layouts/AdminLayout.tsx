@@ -82,8 +82,8 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
               onClick={onNavigate}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-muted",
-                  isActive && "bg-muted",
+                  "flex items-center gap-2 px-3 py-2 text-[13px] transition-colors hover:bg-muted hover:text-foreground",
+                  isActive && "bg-[#111111] text-white hover:bg-[#111111] hover:text-white",
                 )
               }
             >
@@ -95,7 +95,9 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
         return (
           <div key={entry.label}>
             {!collapsed && (
-              <p className="eyebrow px-3 pb-2 text-muted-foreground">{entry.label}</p>
+              <p className="px-3 pb-2 text-[10px] font-semibold tracking-[0.2em] text-accent uppercase">
+                {entry.label}
+              </p>
             )}
             <div className="space-y-0.5">
               {entry.items.map((item) => {
@@ -114,8 +116,8 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
                     to={item.to}
                     onClick={onNavigate}
                     className={cn(
-                      "block px-3 py-1.5 text-[13px] hover:bg-muted",
-                      active && "bg-muted",
+                      "block px-3 py-1.5 text-[13px] transition-colors hover:bg-muted",
+                      active && "bg-muted font-medium text-foreground",
                       collapsed && "text-center",
                     )}
                     title={collapsed ? item.label : undefined}
@@ -145,10 +147,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     .toUpperCase();
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[#F8F8F6]">
       <aside
         className={cn(
-          "hidden h-full min-h-0 border-r border-border bg-card lg:flex lg:flex-col",
+          "hidden h-full min-h-0 border-r border-border bg-white lg:flex lg:flex-col",
           collapsed ? "w-[72px]" : "w-60",
         )}
       >
@@ -161,7 +163,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           {collapsed ? (
             <BrandMark className="h-9 w-9 shrink-0" />
           ) : (
-            <BrandWordmark className="h-8 w-auto" />
+            <BrandWordmark className="h-9 w-auto" />
           )}
           <Button
             variant="ghost"
@@ -178,16 +180,16 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-white px-4">
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="lg:hidden">
                 <Menu className="h-4 w-4" />
               </Button>
             </SheetTrigger>
-            <SheetContent className="flex flex-col overflow-hidden">
+            <SheetContent className="flex flex-col overflow-hidden bg-white">
               <div className="mb-6 flex shrink-0 items-center gap-2">
-                <BrandWordmark className="h-8 w-auto" />
+                <BrandWordmark className="h-9 w-auto" />
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
                 <SidebarNav collapsed={false} />
@@ -195,21 +197,32 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             </SheetContent>
           </Sheet>
           <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search the edit, orders, customers" className="h-9 pl-9" disabled />
+            <Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search the edit, orders, customers"
+              className="h-9 border-border bg-[#F8F8F6] pl-9"
+              disabled
+            />
           </div>
           <Button variant="ghost" size="icon" className="ml-auto" disabled>
             <Bell className="h-4 w-4" />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button type="button" className="flex cursor-pointer items-center gap-2">
+              <button
+                type="button"
+                className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-80"
+              >
                 <Avatar>
-                  <AvatarFallback>{initials}</AvatarFallback>
+                  <AvatarFallback className="bg-[#111111] text-[11px] text-white">
+                    {initials}
+                  </AvatarFallback>
                 </Avatar>
                 <span className="hidden text-left text-sm sm:block">
-                  <span className="block leading-tight">{user?.name}</span>
-                  <span className="block text-[11px] text-muted-foreground">{user?.role}</span>
+                  <span className="block leading-tight text-foreground">{user?.name}</span>
+                  <span className="block text-[11px] tracking-wide text-muted-foreground uppercase">
+                    {user?.role}
+                  </span>
                 </span>
               </button>
             </DropdownMenuTrigger>

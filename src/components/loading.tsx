@@ -46,8 +46,10 @@ export function SessionLoader() {
       aria-busy="true"
     >
       <MarkImg mode="breathe" className="h-24 w-24" />
-      <p className="mt-5 eyebrow text-muted-foreground">RIFAQ admin</p>
-      <h1 className="mt-2 font-display text-3xl">Opening the edit</h1>
+      <p className="mt-5 text-xs font-semibold tracking-[0.22em] text-accent uppercase">
+        RIFAQ admin
+      </p>
+      <h1 className="mt-2 font-display text-3xl tracking-wide text-foreground">Opening the edit</h1>
     </div>
   );
 }

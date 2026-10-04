@@ -41,11 +41,16 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-md border border-border bg-card p-8 sm:p-10">
+    <div className="flex min-h-screen items-center justify-center bg-[#F8F8F6] px-4">
+      <div className="w-full max-w-md border border-border bg-white p-8 shadow-soft sm:p-10 fade-up">
         <BrandLockup className="mx-auto h-28 w-auto" />
-        <h1 className="mt-6 font-display text-4xl">Admin</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-6 text-center text-xs font-semibold tracking-[0.22em] text-accent uppercase">
+          Internal console
+        </p>
+        <h1 className="mt-2 text-center font-display text-4xl tracking-wide text-foreground">
+          Admin
+        </h1>
+        <p className="mt-2 text-center text-sm text-muted-foreground">
           Sign in to manage the edit, orders, and WhatsApp confirmations.
         </p>
         <form className="mt-8 space-y-5" noValidate onSubmit={form.handleSubmit(onSubmit)}>
@@ -64,11 +69,13 @@ export function LoginPage() {
             />
             <FieldError message={form.formState.errors.password?.message} />
           </div>
-          <Button type="submit" className="w-full eyebrow h-11" pending={login.isPending}>
+          <Button type="submit" className="h-11 w-full eyebrow" pending={login.isPending}>
             {login.isPending ? "Signing in" : "Sign in"}
           </Button>
         </form>
-        <p className="mt-6 text-xs text-muted-foreground">Internal use only. The public storefront is unchanged.</p>
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          Internal use only. The public storefront is unchanged.
+        </p>
       </div>
     </div>
   );

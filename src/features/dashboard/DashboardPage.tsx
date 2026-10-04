@@ -27,17 +27,21 @@ import { Button } from "@/components/ui/button";
 import { useDashboard } from "@/hooks/useAuth";
 import { formatPkr } from "@/lib/utils";
 
-const CHART_COLOR = "#1c1c1c";
-const ACCENT = "#c4a98a";
+const CHART_COLOR = "#111111";
+const ACCENT = "#C5A059";
 
 function Kpi({ label, value, loading }: { label: string; value: string | number; loading: boolean }) {
   return (
-    <Card>
+    <Card className="border-border bg-white shadow-none">
       <CardHeader className="pb-2">
-        <p className="eyebrow text-muted-foreground">{label}</p>
+        <p className="text-[10px] font-semibold tracking-[0.2em] text-accent uppercase">{label}</p>
       </CardHeader>
       <CardContent>
-        {loading ? <Skeleton className="h-8 w-24" /> : <p className="font-display text-3xl">{value}</p>}
+        {loading ? (
+          <Skeleton className="h-8 w-24" />
+        ) : (
+          <p className="font-display text-3xl tracking-wide text-foreground">{value}</p>
+        )}
       </CardContent>
     </Card>
   );
@@ -49,9 +53,12 @@ export function DashboardPage() {
 
   if (isError) {
     return (
-      <div className="border border-border bg-card p-8">
-        <h1 className="font-display text-3xl">Dashboard</h1>
-        <p className="mt-3 text-sm text-muted-foreground">Could not load dashboard figures from the API.</p>
+      <div className="border border-border bg-white p-8">
+        <p className="text-xs font-semibold tracking-[0.22em] text-accent uppercase">Overview</p>
+        <h1 className="mt-1 font-display text-3xl tracking-wide">Dashboard</h1>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Could not load dashboard figures from the API.
+        </p>
         <Button className="mt-4" onClick={() => refetch()}>
           Try again
         </Button>
@@ -63,8 +70,10 @@ export function DashboardPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow text-muted-foreground">Today, Asia/Karachi</p>
-          <h1 className="mt-1 font-display text-4xl">Dashboard</h1>
+          <p className="text-xs font-semibold tracking-[0.22em] text-accent uppercase">
+            Today, Asia/Karachi
+          </p>
+          <h1 className="mt-1 font-display text-4xl tracking-wide text-foreground">Dashboard</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">

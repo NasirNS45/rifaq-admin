@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { ApiError, api, mediaPreviewUrl } from "@/lib/api";
 import type { MediaAsset, MediaFolder } from "@/types/api";
 import { UploadProgress } from "@/components/loading";
+import { ProductImageFallback } from "@/components/ProductImageFallback";
 import { cn } from "@/lib/utils";
 
 type ImageUploadFieldProps = {
@@ -52,11 +53,9 @@ function PreviewThumb({
   const [broken, setBroken] = useState(false);
 
   return (
-    <div className="relative h-28 w-28 border border-border bg-muted">
-      {broken ? (
-        <span className="flex h-full items-center justify-center px-2 text-center text-[11px] text-muted-foreground">
-          No image
-        </span>
+    <div className="relative h-28 w-28 border border-border bg-[#F4F4F0]">
+      {broken || !src.trim() ? (
+        <ProductImageFallback />
       ) : (
         <img
           src={mediaPreviewUrl(src)}
@@ -66,7 +65,7 @@ function PreviewThumb({
         />
       )}
       {isPrimary ? (
-        <span className="absolute left-1 top-1 bg-background/90 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+        <span className="absolute top-1 left-1 bg-[#111111] px-1.5 py-0.5 text-[10px] tracking-wide text-white uppercase">
           Primary
         </span>
       ) : null}

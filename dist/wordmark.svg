@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 100" fill="none" role="img" aria-label="RIFAQ">
+  <path d="M22 78V34C22 22 34 14 50 14C66 14 78 22 78 34V78" stroke="#111111" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <circle cx="50" cy="26" r="3.5" fill="#C5A059"/>
+  <path d="M40 72V36H54C60.0751 36 65 40.4772 65 46.5C65 52.5228 60.0751 57 54 57H40M52 57L64 72" stroke="#111111" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <text x="118" y="58" fill="#111111" font-size="36" font-weight="600" letter-spacing="0.28em" font-family="Georgia, 'Times New Roman', serif">RIFAQ</text>
+  <line x1="118" y1="72" x2="318" y2="72" stroke="#D4D4D0" stroke-width="1"/>
+</svg>

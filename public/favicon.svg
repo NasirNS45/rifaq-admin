@@ -1,13 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="RIFAQ">
-  <rect width="64" height="64" fill="#f8f5f0"/>
-  <rect x="4.5" y="4.5" width="55" height="55" stroke="#c4a98a" stroke-width="1.25"/>
-  <rect x="8" y="8" width="48" height="48" stroke="#c4a98a" stroke-width="0.55"/>
-  <g stroke="#1c1c1c" stroke-width="2.45" stroke-linecap="round" stroke-linejoin="round">
-    <ellipse cx="24" cy="22.6" rx="4.65" ry="5.55"/>
-    <path d="M24 28.2V43.2"/>
-    <path d="M28.6 22.8c10.2-.9 18 4.4 18 11.4 0 7.4-7.6 11.8-22.6 11.8"/>
-    <path d="M24 45.8c6.6 1.2 14.2 6.2 18.8 10.8"/>
-  </g>
-  <path fill="#1c1c1c" d="M24 51.6 20.7 43h6.6z"/>
-  <path d="M17.2 22.8c3.2-3.9 10.4-3.9 13.6 0" stroke="#c4a98a" stroke-width="1.9" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" role="img" aria-label="RIFAQ">
+  <rect width="100" height="100" rx="22" fill="#111111"/>
+  <path
+    d="M28 78V36C28 24 38 16 50 16C62 16 72 24 72 36V78"
+    stroke="#FFFFFF"
+    stroke-width="6"
+    stroke-linecap="round"
+    fill="none"
+  />
+  <circle cx="50" cy="28" r="4.5" fill="#C5A059"/>
+  <path
+    d="M40 72V38H54C59.5228 38 64 42.0294 64 47.5C64 52.9706 59.5228 57 54 57H40M53 57L64 72"
+    stroke="#FFFFFF"
+    stroke-width="5.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
 </svg>
