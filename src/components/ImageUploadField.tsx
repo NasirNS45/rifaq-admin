@@ -9,18 +9,37 @@ import { UploadProgress } from "@/components/loading";
 import { ProductImageFallback } from "@/components/ProductImageFallback";
 import { cn } from "@/lib/utils";
 
-type ImageUploadFieldProps = {
+export type ImageUploadItem = {
+  image_url: string;
+  alt_text: string | null;
+};
+
+type SharedImageUploadFieldProps = {
   id: string;
   label: string;
-  value: string;
   folder: MediaFolder;
   disabled?: boolean;
   hint?: string;
   multiple?: boolean;
-  onChange: (value: string) => void;
 };
 
-const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
+type ImageUploadFieldProps = SharedImageUploadFieldProps &
+  (
+    | {
+        value: string;
+        onChange: (value: string) => void;
+        images?: never;
+        onImagesChange?: never;
+      }
+    | {
+        images: ImageUploadItem[];
+        onImagesChange: (images: ImageUploadItem[]) => void;
+        value?: never;
+        onChange?: never;
+      }
+  );
+
+const ACCEPT = "image/jpeg,image/png,image/webp,image/avif,image/gif";
 
 function parseUrls(value: string): string[] {
   return value
@@ -110,45 +129,66 @@ function PreviewThumb({
 export const ImageUploadField = ({
   id,
   label,
-  value,
   folder,
   disabled = false,
   hint,
   multiple = false,
-  onChange,
+  ...props
 }: ImageUploadFieldProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [dragOver, setDragOver] = useState(false);
-  const previews = parseUrls(value);
+  const structured = "images" in props && props.images !== undefined;
+  const items: ImageUploadItem[] = structured
+    ? props.images
+    : parseUrls(props.value ?? "").map((image_url) => ({
+        image_url,
+        alt_text: null,
+      }));
 
-  function setUrls(next: string[]) {
-    onChange(next.join("\n"));
+  function setItems(next: ImageUploadItem[]) {
+    if (structured && "onImagesChange" in props) {
+      props.onImagesChange(next);
+    } else if ("onChange" in props) {
+      props.onChange(next.map((item) => item.image_url).join("\n"));
+    }
   }
 
   async function handleFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
-    const files = multiple ? Array.from(fileList) : fileList[0] ? [fileList[0]] : [];
+    const files = multiple
+      ? Array.from(fileList)
+      : fileList[0]
+        ? [fileList[0]]
+        : [];
     if (files.length === 0) return;
     setUploading(true);
     setPendingCount(files.length);
     try {
-      const urls: string[] = [];
+      const uploaded: ImageUploadItem[] = [];
       for (const file of files) {
         const body = new FormData();
         body.append("file", file);
-        const asset = await api.upload<MediaAsset>(`/api/v1/media?folder=${folder}`, body);
-        urls.push(asset.url);
+        const asset = await api.upload<MediaAsset>(
+          `/api/v1/media?folder=${folder}`,
+          body,
+        );
+        uploaded.push({ image_url: asset.url, alt_text: null });
       }
       if (multiple) {
-        setUrls([...previews, ...urls]);
+        setItems([...items, ...uploaded]);
       } else {
-        setUrls(urls[0] ? [urls[0]] : []);
+        setItems(uploaded[0] ? [uploaded[0]] : []);
       }
-      toast.success(files.length === 1 ? "Image uploaded." : "Images uploaded.");
+      toast.success(
+        files.length === 1 ? "Image uploaded." : "Images uploaded.",
+      );
     } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Could not upload this image.";
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : "Could not upload this image.";
       toast.error(message);
     } finally {
       setUploading(false);
@@ -157,8 +197,8 @@ export const ImageUploadField = ({
   }
 
   const defaultHint = multiple
-    ? "JPEG, PNG, WebP, or GIF. Maximum 8 MB. The first image is the primary."
-    : "JPEG, PNG, WebP, or GIF. Maximum 8 MB.";
+    ? "JPEG, PNG, WebP, AVIF, or GIF. Maximum 8 MB. The first image is the primary."
+    : "JPEG, PNG, WebP, AVIF, or GIF. Maximum 8 MB.";
 
   return (
     <div className="space-y-2">
@@ -196,7 +236,9 @@ export const ImageUploadField = ({
       >
         <ImagePlus className="mx-auto h-6 w-6 text-muted-foreground" />
         <p className="mt-2 text-sm">
-          {multiple ? "Drop images here, or choose files." : "Drop an image here, or choose a file."}
+          {multiple
+            ? "Drop images here, or choose files."
+            : "Drop an image here, or choose a file."}
         </p>
         <Button
           type="button"
@@ -207,35 +249,68 @@ export const ImageUploadField = ({
           pending={uploading}
           onClick={() => inputRef.current?.click()}
         >
-          {uploading ? "Uploading" : multiple ? "Choose images" : "Choose image"}
+          {uploading
+            ? "Uploading"
+            : multiple
+              ? "Choose images"
+              : "Choose image"}
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">{uploading ? "Uploading." : hint ?? defaultHint}</p>
-      {previews.length > 0 || pendingCount > 0 ? (
+      <p className="text-xs text-muted-foreground">
+        {uploading ? "Uploading." : (hint ?? defaultHint)}
+      </p>
+      {items.length > 0 || pendingCount > 0 ? (
         <div className="flex flex-wrap gap-2">
-          {previews.map((src, index) => (
-            <PreviewThumb
-              key={`${src}-${index}`}
-              src={src}
-              alt=""
-              isPrimary={multiple && index === 0}
-              canMoveLeft={multiple && index > 0}
-              canMoveRight={multiple && index < previews.length - 1}
-              disabled={disabled || uploading}
-              onRemove={() => setUrls(previews.filter((_, i) => i !== index))}
-              onMoveLeft={() => {
-                if (index === 0) return;
-                const next = [...previews];
-                [next[index - 1], next[index]] = [next[index], next[index - 1]];
-                setUrls(next);
-              }}
-              onMoveRight={() => {
-                if (index >= previews.length - 1) return;
-                const next = [...previews];
-                [next[index], next[index + 1]] = [next[index + 1], next[index]];
-                setUrls(next);
-              }}
-            />
+          {items.map((item, index) => (
+            <div key={`${item.image_url}-${index}`} className="space-y-1">
+              <PreviewThumb
+                src={item.image_url}
+                alt={item.alt_text ?? ""}
+                isPrimary={multiple && index === 0}
+                canMoveLeft={multiple && index > 0}
+                canMoveRight={multiple && index < items.length - 1}
+                disabled={disabled || uploading}
+                onRemove={() => setItems(items.filter((_, i) => i !== index))}
+                onMoveLeft={() => {
+                  if (index === 0) return;
+                  const next = [...items];
+                  [next[index - 1], next[index]] = [
+                    next[index],
+                    next[index - 1],
+                  ];
+                  setItems(next);
+                }}
+                onMoveRight={() => {
+                  if (index >= items.length - 1) return;
+                  const next = [...items];
+                  [next[index], next[index + 1]] = [
+                    next[index + 1],
+                    next[index],
+                  ];
+                  setItems(next);
+                }}
+              />
+              {structured ? (
+                <input
+                  type="text"
+                  aria-label={`Alt text for image ${index + 1}`}
+                  placeholder="Alt text"
+                  maxLength={200}
+                  disabled={disabled || uploading}
+                  value={item.alt_text ?? ""}
+                  onChange={(event) =>
+                    setItems(
+                      items.map((image, imageIndex) =>
+                        imageIndex === index
+                          ? { ...image, alt_text: event.target.value || null }
+                          : image,
+                      ),
+                    )
+                  }
+                  className="h-8 w-28 border border-input bg-background px-2 text-xs"
+                />
+              ) : null}
+            </div>
           ))}
           {Array.from({ length: pendingCount }, (_, index) => (
             <UploadProgress key={`pending-${index}`} />

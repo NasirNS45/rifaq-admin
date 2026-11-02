@@ -1,4 +1,9 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type {
   Adjustment,
@@ -23,7 +28,9 @@ type ListParams = {
   is_active?: boolean;
 };
 
-function searchParams(params: Record<string, string | number | boolean | undefined>) {
+function searchParams(
+  params: Record<string, string | number | boolean | undefined>,
+) {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === "") continue;
@@ -71,7 +78,8 @@ export function useDeleteBrand() {
 export function useCategories(params: ListParams) {
   return useQuery({
     queryKey: ["categories", params],
-    queryFn: () => api.getPage<Category>(`/api/v1/categories${searchParams(params)}`),
+    queryFn: () =>
+      api.getPage<Category>(`/api/v1/categories${searchParams(params)}`),
     placeholderData: keepPreviousData,
   });
 }
@@ -106,7 +114,8 @@ export function useDeleteCategory() {
 export function useCollections(params: ListParams) {
   return useQuery({
     queryKey: ["collections", params],
-    queryFn: () => api.getPage<Collection>(`/api/v1/collections${searchParams(params)}`),
+    queryFn: () =>
+      api.getPage<Collection>(`/api/v1/collections${searchParams(params)}`),
     placeholderData: keepPreviousData,
   });
 }
@@ -148,7 +157,8 @@ export type ProductListParams = ListParams & {
 export function useProducts(params: ProductListParams) {
   return useQuery({
     queryKey: ["products", params],
-    queryFn: () => api.getPage<ProductListItem>(`/api/v1/products${searchParams(params)}`),
+    queryFn: () =>
+      api.getPage<ProductListItem>(`/api/v1/products${searchParams(params)}`),
     placeholderData: keepPreviousData,
   });
 }
@@ -175,6 +185,7 @@ export type ProductWrite = {
   stock_quantity?: number;
   low_stock_threshold: number;
   status: ProductStatus;
+  is_indexable: boolean;
   fabric?: string | null;
   care_instructions?: string | null;
   authenticity_note?: string | null;
@@ -229,18 +240,24 @@ export function useDeleteProduct() {
 export function useStock(params: ListParams & { availability?: Availability }) {
   return useQuery({
     queryKey: ["inventory", "stock", params],
-    queryFn: () => api.getPage<StockRow>(`/api/v1/inventory/stock${searchParams(params)}`),
+    queryFn: () =>
+      api.getPage<StockRow>(`/api/v1/inventory/stock${searchParams(params)}`),
     placeholderData: keepPreviousData,
   });
 }
 
 export function useAdjustments(
-  params: ListParams & { product_id?: string; adjustment_type?: AdjustmentType },
+  params: ListParams & {
+    product_id?: string;
+    adjustment_type?: AdjustmentType;
+  },
 ) {
   return useQuery({
     queryKey: ["inventory", "adjustments", params],
     queryFn: () =>
-      api.getPage<Adjustment>(`/api/v1/inventory/adjustments${searchParams(params)}`),
+      api.getPage<Adjustment>(
+        `/api/v1/inventory/adjustments${searchParams(params)}`,
+      ),
     placeholderData: keepPreviousData,
   });
 }

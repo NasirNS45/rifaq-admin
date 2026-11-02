@@ -147,8 +147,10 @@ export type NamedRef = {
 };
 
 export type ProductStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
-export type Availability = "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "PRE_ORDER";
-export type AdjustmentType = "RESTOCK" | "SALE" | "RETURN" | "DAMAGE" | "MANUAL_ADJUSTMENT";
+export type Availability =
+  "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "PRE_ORDER";
+export type AdjustmentType =
+  "RESTOCK" | "SALE" | "RETURN" | "DAMAGE" | "MANUAL_ADJUSTMENT";
 export type OrderStatus =
   | "PENDING"
   | "WHATSAPP_CONFIRMATION"
@@ -282,6 +284,7 @@ export type Category = {
   image: string | null;
   parent_id: string | null;
   is_active: boolean;
+  is_indexable: boolean;
   sort_order: number;
   seo_title: string | null;
   seo_description: string | null;
@@ -350,6 +353,7 @@ export type Product = {
   available_stock: number;
   low_stock_threshold: number;
   status: ProductStatus;
+  is_indexable: boolean;
   fabric: string | null;
   care_instructions: string | null;
   authenticity_note: string | null;
@@ -416,6 +420,7 @@ export type CategoryWrite = {
   image?: string | null;
   parent_id?: string | null;
   is_active: boolean;
+  is_indexable: boolean;
   sort_order: number;
   seo_title?: string | null;
   seo_description?: string | null;
