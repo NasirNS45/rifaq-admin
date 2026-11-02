@@ -91,7 +91,7 @@ export function UserListPage() {
       ) : !users.data?.data.length ? (
         <EmptyState
           title="No admin users"
-          body="Create an editor with STAFF, MANAGER, ADMIN, or SUPER_ADMIN."
+          body="Create a user account with the STAFF, MANAGER, ADMIN, or SUPER_ADMIN role."
           action={canManageUsers ? { to: "/system/users/new", label: "Add user" } : undefined}
         />
       ) : (

@@ -51,7 +51,7 @@ export function LoginPage() {
           Admin
         </h1>
         <p className="mt-2 text-center text-sm text-muted-foreground">
-          Sign in to manage the edit, orders, and WhatsApp confirmations.
+          Sign in to manage products, orders, and WhatsApp confirmations.
         </p>
         <form className="mt-8 space-y-5" noValidate onSubmit={form.handleSubmit(onSubmit)}>
           <div className="space-y-2">

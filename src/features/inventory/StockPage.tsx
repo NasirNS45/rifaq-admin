@@ -84,7 +84,7 @@ export function StockPage() {
       ) : !stock.data?.data.length ? (
         <EmptyState
           title="No stock to show"
-          body="When pieces are added to the edit, current, reserved, and available quantities will list here."
+          body="When products are added to the catalog, current, reserved, and available quantities will list here."
           action={canCreate ? { to: "/products/new", label: "Add product" } : undefined}
         />
       ) : (

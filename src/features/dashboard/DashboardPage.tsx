@@ -292,7 +292,7 @@ export function DashboardPage() {
               </Table>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No low-stock pieces. Inventory alerts will show here once products are added to the edit.
+                No low-stock pieces. Inventory alerts will show here once products are added to the catalog.
               </p>
             )}
           </CardContent>

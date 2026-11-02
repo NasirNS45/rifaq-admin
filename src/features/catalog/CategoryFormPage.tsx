@@ -99,7 +99,7 @@ export function CategoryFormPage() {
   }
 
   if (!isNew && existing.isError) {
-    return <PageHeader eyebrow="Catalog" title="Category not found" description="This category is not in the edit." />;
+    return <PageHeader eyebrow="Catalog" title="Category not found" description="This category could not be found." />;
   }
 
   return (

@@ -46,7 +46,7 @@ export function CollectionListPage() {
       <PageHeader
         eyebrow="Catalog"
         title="Collections"
-        description="New Arrivals, The RIFAQ Edit, Summer Edit, Festive Edit, and Sale."
+        description="Examples: New Arrivals, RIFAQ Picks, Summer, Festive, and Sale."
         action={
           canCreate ? (
             <Button asChild>
@@ -82,7 +82,7 @@ export function CollectionListPage() {
       ) : !collections.data?.data.length ? (
         <EmptyState
           title="No collections yet"
-          body="Group pieces into New Arrivals, The RIFAQ Edit, Summer Edit, Festive Edit, or Sale."
+          body="Group products into collections such as New Arrivals, RIFAQ Picks, Summer, Festive, or Sale."
           action={canCreate ? { to: "/collections/new", label: "Add collection" } : undefined}
         />
       ) : (

@@ -90,7 +90,7 @@ export function BrandFormPage() {
 
   if (!isNew && existing.isError) {
     return (
-      <PageHeader eyebrow="Catalog" title="Brand not found" description="This catalogue label is not in the edit." />
+      <PageHeader eyebrow="Catalog" title="Brand not found" description="This catalogue label could not be found." />
     );
   }
 

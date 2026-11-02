@@ -103,7 +103,7 @@ export function CollectionFormPage() {
 
   if (!isNew && existing.isError) {
     return (
-      <PageHeader eyebrow="Catalog" title="Collection not found" description="This collection is not in the edit." />
+      <PageHeader eyebrow="Catalog" title="Collection not found" description="This collection could not be found." />
     );
   }
 
@@ -112,7 +112,7 @@ export function CollectionFormPage() {
       <PageHeader
         eyebrow="Catalog"
         title={isNew ? "Add collection" : "Edit collection"}
-        description="Collections group pieces for the storefront, including The RIFAQ Edit."
+        description="Collections group products for the storefront, such as New Arrivals, Summer, or Festive."
       />
       <form className="space-y-5 border border-border bg-card p-6" noValidate onSubmit={form.handleSubmit(onSubmit)}>
         <div className="space-y-2">

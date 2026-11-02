@@ -199,7 +199,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <div className="relative max-w-sm flex-1">
             <Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search the edit, orders, customers"
+              placeholder="Search products, orders, customers"
               className="h-9 border-border bg-[#F8F8F6] pl-9"
               disabled
             />

@@ -192,7 +192,7 @@ export function ProductFormPage() {
           collection_ids: values.collection_ids,
         },
       });
-      toast.success(isNew ? "Piece added to the edit." : "Piece updated.");
+      toast.success(isNew ? "Product added." : "Product updated.");
       navigate(`/products/${saved.id}`, { replace: true });
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Could not save this piece.";
@@ -205,7 +205,7 @@ export function ProductFormPage() {
   }
 
   if (!isNew && existing.isError) {
-    return <PageHeader eyebrow="Catalog" title="Piece not found" description="This product is not in the edit." />;
+    return <PageHeader eyebrow="Catalog" title="Product not found" description="This product could not be found." />;
   }
 
   return (
@@ -312,7 +312,7 @@ export function ProductFormPage() {
           <Textarea id="description" disabled={!canWrite} {...form.register("description")} />
         </section>
         <section className="space-y-2">
-          <Label htmlFor="edit_note">Editor note</Label>
+          <Label htmlFor="edit_note">Product note</Label>
           <Textarea id="edit_note" disabled={!canWrite} {...form.register("edit_note")} />
         </section>
         <section className="space-y-2">

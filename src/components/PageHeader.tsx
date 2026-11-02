@@ -109,7 +109,7 @@ export function PaginationBar({
   return (
     <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
       <p>
-        {total} in the edit. Page {page} of {pages}.
+        {total} results. Page {page} of {pages}.
       </p>
       <div className="flex gap-2">
         <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>

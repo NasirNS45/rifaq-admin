@@ -49,7 +49,7 @@ export function SessionLoader() {
       <p className="mt-5 text-xs font-semibold tracking-[0.22em] text-accent uppercase">
         RIFAQ admin
       </p>
-      <h1 className="mt-2 font-display text-3xl tracking-wide text-foreground">Opening the edit</h1>
+      <h1 className="mt-2 font-display text-3xl tracking-wide text-foreground">Loading dashboard</h1>
     </div>
   );
 }

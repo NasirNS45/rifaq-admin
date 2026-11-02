@@ -82,7 +82,7 @@ export function CategoryListPage() {
       ) : !categories.data?.data.length ? (
         <EmptyState
           title="No categories yet"
-          body="Add Unstitched, Pret, Festive, Accessories, and New In so the edit can be browsed the way the storefront already is."
+          body="Add Unstitched, Pret, Festive, Accessories, and New In so shoppers can browse products by category."
           action={canCreate ? { to: "/categories/new", label: "Add category" } : undefined}
         />
       ) : (

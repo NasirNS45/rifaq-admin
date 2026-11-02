@@ -136,7 +136,7 @@ export function DiscountFormPage() {
       <PageHeader
         eyebrow="Marketing"
         title="Campaign not found"
-        description="This sale campaign is not in the edit."
+        description="This sale campaign could not be found."
       />
     );
   }

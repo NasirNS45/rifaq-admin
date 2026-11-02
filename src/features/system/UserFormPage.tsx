@@ -98,7 +98,7 @@ export function UserFormPage() {
       <PageHeader
         eyebrow="System"
         title="User not found"
-        description="This admin account is not in the edit."
+        description="This admin account could not be found."
       />
     );
   }

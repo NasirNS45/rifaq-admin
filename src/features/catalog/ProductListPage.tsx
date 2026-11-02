@@ -55,7 +55,7 @@ export function ProductListPage() {
     if (!pendingId) return;
     try {
       await remove.mutateAsync(pendingId);
-      toast.success("Piece removed from the edit.");
+      toast.success("Product removed.");
       setPendingId(null);
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Could not delete this piece.";
@@ -68,7 +68,7 @@ export function ProductListPage() {
       <PageHeader
         eyebrow="Catalog"
         title="Products"
-        description="Pieces in the RIFAQ edit. Stock changes belong on the inventory ledger, not on this form after create."
+        description="Manage product details here. Stock changes belong on the inventory ledger, not on this form after creation."
         action={
           canCreate ? (
             <Button asChild>
@@ -127,10 +127,10 @@ export function ProductListPage() {
       {products.isLoading ? (
         <TableSkeleton columns={["#", "Piece", "SKU", "Brand", "Price", "Stock", "Status"]} />
       ) : products.isError ? (
-        <EmptyState title="Could not load products" body="The edit could not be fetched. Try again in a moment." />
+        <EmptyState title="Could not load products" body="Products could not be fetched. Try again in a moment." />
       ) : !products.data?.data.length ? (
         <EmptyState
-          title="The edit is empty"
+          title="No products yet"
           body="Add unstitched lawn, pret, and festive pieces. Brands are catalogue labels only."
           action={canCreate ? { to: "/products/new", label: "Add product" } : undefined}
         />

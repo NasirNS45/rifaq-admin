@@ -81,7 +81,7 @@ export function BrandListPage() {
         <EmptyState title="Could not load brands" body="The catalogue labels could not be fetched. Try again in a moment." />
       ) : !brands.data?.data.length ? (
         <EmptyState
-          title="No brands in the edit"
+          title="No brands yet"
           body="Add catalogue labels such as Bonanza or Sapphire. These names describe the piece, not an affiliation."
           action={canCreate ? { to: "/brands/new", label: "Add brand" } : undefined}
         />
