@@ -8,3 +8,7 @@ navigation. `public/_headers` revalidates HTML while allowing hashed assets to b
 cached immutably.
 
 The repository Dockerfile is for local Vite development, not production serving.
+
+The admin app sends `noindex, nofollow, noarchive` directives in its HTML and
+response headers. Keep crawlers able to fetch the app so they can process the
+noindex directive; do not block the admin host in `robots.txt`.
