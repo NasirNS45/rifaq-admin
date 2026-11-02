@@ -1,9 +1,10 @@
 # RIFAQ Admin
 
-The admin is a static React SPA. Build it with `npm ci && npm run build`; deploy the
-contents of `dist/` to Cloudflare Pages with `VITE_API_URL` set to the HTTPS API
-origin at build time.
+The admin is a static React SPA deployed as Cloudflare Workers static assets. Set
+`VITE_API_URL` to the HTTPS API origin at build time, then run `npm ci`,
+`npm run build`, and `npx wrangler deploy`. Wrangler serves `dist/` and applies the
+single-page-app fallback from `wrangler.jsonc`, so client-side routes work on direct
+navigation. `public/_headers` revalidates HTML while allowing hashed assets to be
+cached immutably.
 
-The `_redirects` file provides the SPA fallback for deep links. `_headers` keeps the
-HTML revalidated while allowing hashed assets to be cached immutably. The repository
-Dockerfile is for local Vite development, not production serving.
+The repository Dockerfile is for local Vite development, not production serving.
