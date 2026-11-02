@@ -1,6 +1,9 @@
 import type { Envelope } from "@/types/api";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
+if (!API_URL) {
+  throw new Error("VITE_API_URL must be set when building the admin for production.");
+}
 const TOKEN_KEY = "rifaq_access_token";
 
 let accessToken: string | null = sessionStorage.getItem(TOKEN_KEY);
