@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/BrandMark";
+import { useTheme } from "@/providers/useTheme";
 import {
   Table,
   TableBody,
@@ -16,9 +17,11 @@ function MarkImg({
   className?: string;
   mode: "trace" | "breathe";
 }) {
+  const { resolved } = useTheme();
   return (
     <BrandMark
       className={cn("h-16 w-16", mode === "breathe" && "frame-breathe", className)}
+      dark={resolved === "dark"}
     />
   );
 }

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
  * RIFAQ Admin design system — aligned with storefront.
  * Crisp white ground, near-black ink, gold accent.
@@ -57,7 +59,60 @@
   --text-2xs: 0.6875rem;
 }
 
+/* Dark appearance: toggled via `class="dark"` on `<html>` (see ThemeProvider). */
+.dark {
+  --color-background: #0d0d0d;
+  --color-foreground: #f2f2f0;
+
+  --color-card: #141414;
+  --color-card-foreground: #f2f2f0;
+
+  --color-popover: #141414;
+  --color-popover-foreground: #f2f2f0;
+
+  --color-primary: #f2f2f0;
+  --color-primary-foreground: #111111;
+
+  --color-secondary: #1c1c1c;
+  --color-secondary-foreground: #f2f2f0;
+
+  --color-muted: #1a1a1a;
+  --color-muted-foreground: #a3a3a0;
+
+  --color-accent: #d4b06a;
+  --color-accent-text: #c5a059;
+  --color-accent-foreground: #111111;
+
+  --color-destructive: #e85d4f;
+  --color-destructive-foreground: #111111;
+
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-info: #60a5fa;
+
+  --color-surface-sunken: #111111;
+
+  --color-border: #2a2a28;
+  --color-input: #3f3f3c;
+  --color-ring: #f2f2f0;
+
+  --color-chart-1: #f2f2f0;
+  --color-chart-accent: #d4b06a;
+  --color-chart-grid: #2a2a28;
+  --color-chart-negative: #f87171;
+
+  --shadow-soft: 0 1px 0 rgb(242 242 240 / 0.08), 0 8px 24px rgb(0 0 0 / 0.45);
+}
+
 @layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   * {
     border-color: var(--color-border);
   }

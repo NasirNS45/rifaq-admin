@@ -34,6 +34,8 @@ import { useCurrentUser, useLogout } from "@/hooks/useAuth";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { preloadDashboardCharts } from "@/features/dashboard/preloadDashboardCharts";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { useTheme } from "@/providers/useTheme";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
 type NavGroup = { label: string; items: NavItem[] };
@@ -171,6 +173,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     .toUpperCase();
 
   const userMenuLabel = useMemo(() => `${user?.name ?? "Account"} menu`, [user?.name]);
+  const { resolved } = useTheme();
+  const brandIsDark = resolved === "dark";
 
   return (
     <>
@@ -194,9 +198,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             )}
           >
             {collapsed ? (
-              <BrandMark className="h-9 w-9 shrink-0" />
+              <BrandMark className="h-9 w-9 shrink-0" dark={brandIsDark} />
             ) : (
-              <BrandWordmark className="h-9 w-auto" />
+              <BrandWordmark className="h-9 w-auto" dark={brandIsDark} />
             )}
             <Button
               variant="ghost"
@@ -228,7 +232,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                   <SheetDescription className="sr-only">Browse admin sections</SheetDescription>
                 </SheetHeader>
                 <div className="mb-6 flex shrink-0 items-center gap-2">
-                  <BrandWordmark className="h-9 w-auto" />
+                  <BrandWordmark className="h-9 w-auto" dark={brandIsDark} />
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
                   <SidebarNav collapsed={false} onNavigate={() => setMobileOpen(false)} />
@@ -245,7 +249,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                 tabIndex={-1}
               />
             </div>
-            <Button variant="ghost" size="icon" className="ml-auto" disabled aria-label="Notifications unavailable" title="Coming soon">
+            <ThemeSwitcher className="ml-auto" />
+            <Button variant="ghost" size="icon" disabled aria-label="Notifications unavailable" title="Coming soon">
               <Bell className="h-4 w-4" />
             </Button>
             <DropdownMenu>
