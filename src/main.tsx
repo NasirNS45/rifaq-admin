@@ -1,8 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { App } from "./App";
+import { AppRouter } from "./router";
 import { Toaster } from "@/components/ui/sonner";
 import { queryClient } from "@/lib/queryClient";
 import { ThemeProvider } from "@/providers/ThemeProvider";
@@ -12,10 +11,8 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <BrowserRouter>
-          <App />
-          <Toaster />
-        </BrowserRouter>
+        <AppRouter />
+        <Toaster />
       </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>,

@@ -1,5 +1,12 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
-import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
+import {
+  createBrowserRouter,
+  Navigate,
+  Outlet,
+  RouterProvider,
+  useLocation,
+  useNavigate,
+} from "react-router";
 import { RouteAnnouncer, RouteFocusMain } from "@/components/RouteAnnouncer";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAccessToken, useCurrentUser } from "@/hooks/useAuth";
@@ -124,7 +131,7 @@ function LoginGate() {
   return <LoginPage />;
 }
 
-export function App() {
+function RootShell() {
   return (
     <>
       <RouteAnnouncer />
@@ -137,44 +144,74 @@ export function App() {
           </div>
         }
       >
-        <Routes>
-          <Route path="/login" element={<LoginGate />} />
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/products" element={<ProductListPage />} />
-            <Route path="/products/new" element={<ProductFormPage />} />
-            <Route path="/products/:id" element={<ProductFormPage />} />
-            <Route path="/categories" element={<CategoryListPage />} />
-            <Route path="/categories/new" element={<CategoryFormPage />} />
-            <Route path="/categories/:id" element={<CategoryFormPage />} />
-            <Route path="/brands" element={<BrandListPage />} />
-            <Route path="/brands/new" element={<BrandFormPage />} />
-            <Route path="/brands/:id" element={<BrandFormPage />} />
-            <Route path="/collections" element={<CollectionListPage />} />
-            <Route path="/collections/new" element={<CollectionFormPage />} />
-            <Route path="/collections/:id" element={<CollectionFormPage />} />
-            <Route path="/inventory" element={<StockPage />} />
-            <Route path="/inventory/adjustments" element={<AdjustmentsPage />} />
-            <Route path="/orders" element={<OrderListPage />} />
-            <Route path="/orders/pending" element={<Navigate to="/orders?status=pending" replace />} />
-            <Route path="/orders/confirmed" element={<Navigate to="/orders?status=confirmed" replace />} />
-            <Route path="/orders/processing" element={<Navigate to="/orders?status=processing" replace />} />
-            <Route path="/orders/delivered" element={<Navigate to="/orders?status=delivered" replace />} />
-            <Route path="/orders/cancelled" element={<Navigate to="/orders?status=cancelled" replace />} />
-            <Route path="/orders/:id" element={<OrderDetailPage />} />
-            <Route path="/customers" element={<CustomerListPage />} />
-            <Route path="/customers/:id" element={<CustomerDetailPage />} />
-            <Route path="/discounts" element={<DiscountListPage />} />
-            <Route path="/discounts/new" element={<DiscountFormPage />} />
-            <Route path="/discounts/:id" element={<DiscountFormPage />} />
-            <Route path="/system/users" element={<UserListPage />} />
-            <Route path="/system/users/new" element={<UserFormPage />} />
-            <Route path="/system/users/:id" element={<UserFormPage />} />
-            <Route path="/system/audit" element={<AuditPage />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Outlet />
       </Suspense>
     </>
   );
+}
+
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <RootShell />,
+    children: [
+      { path: "login", element: <LoginGate /> },
+      {
+        element: <ProtectedRoute />,
+        children: [
+          { index: true, element: <DashboardPage /> },
+          { path: "products", element: <ProductListPage /> },
+          { path: "products/new", element: <ProductFormPage /> },
+          { path: "products/:id", element: <ProductFormPage /> },
+          { path: "categories", element: <CategoryListPage /> },
+          { path: "categories/new", element: <CategoryFormPage /> },
+          { path: "categories/:id", element: <CategoryFormPage /> },
+          { path: "brands", element: <BrandListPage /> },
+          { path: "brands/new", element: <BrandFormPage /> },
+          { path: "brands/:id", element: <BrandFormPage /> },
+          { path: "collections", element: <CollectionListPage /> },
+          { path: "collections/new", element: <CollectionFormPage /> },
+          { path: "collections/:id", element: <CollectionFormPage /> },
+          { path: "inventory", element: <StockPage /> },
+          { path: "inventory/adjustments", element: <AdjustmentsPage /> },
+          { path: "orders", element: <OrderListPage /> },
+          {
+            path: "orders/pending",
+            element: <Navigate to="/orders?status=pending" replace />,
+          },
+          {
+            path: "orders/confirmed",
+            element: <Navigate to="/orders?status=confirmed" replace />,
+          },
+          {
+            path: "orders/processing",
+            element: <Navigate to="/orders?status=processing" replace />,
+          },
+          {
+            path: "orders/delivered",
+            element: <Navigate to="/orders?status=delivered" replace />,
+          },
+          {
+            path: "orders/cancelled",
+            element: <Navigate to="/orders?status=cancelled" replace />,
+          },
+          { path: "orders/:id", element: <OrderDetailPage /> },
+          { path: "customers", element: <CustomerListPage /> },
+          { path: "customers/:id", element: <CustomerDetailPage /> },
+          { path: "discounts", element: <DiscountListPage /> },
+          { path: "discounts/new", element: <DiscountFormPage /> },
+          { path: "discounts/:id", element: <DiscountFormPage /> },
+          { path: "system/users", element: <UserListPage /> },
+          { path: "system/users/new", element: <UserFormPage /> },
+          { path: "system/users/:id", element: <UserFormPage /> },
+          { path: "system/audit", element: <AuditPage /> },
+        ],
+      },
+      { path: "*", element: <Navigate to="/" replace /> },
+    ],
+  },
+]);
+
+export function AppRouter() {
+  return <RouterProvider router={router} />;
 }
