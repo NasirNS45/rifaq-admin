@@ -1,10 +1,16 @@
-import { useEffect } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import type { FieldErrors, FieldPath } from "react-hook-form";
 import { useForm, useWatch } from "react-hook-form";
 import { Link, useBlocker, useNavigate, useParams } from "react-router";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { FormSection } from "@/components/FormSection";
 import { ImageUploadField } from "@/components/ImageUploadField";
 import {
   ProductSeoDescriptionGuidance,
@@ -27,69 +33,60 @@ import {
 } from "@/hooks/useCatalog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { ProductStatus } from "@/types/api";
+import {
+  PRODUCT_FORM_GROUPS,
+  type ProductFormGroup,
+} from "./productFormGroups";
+import {
+  productFormSchema,
+  splitList,
+  type ProductFormValues,
+} from "./productFormSchema";
 
-const schema = z.object({
-  name: z.string().trim().min(1, "Name is required."),
-  slug: z
-    .string()
-    .refine(
-      (value) => !value || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value),
-      "Use lowercase letters, numbers, and single hyphens.",
-    ),
-  sku: z.string().trim().min(1, "SKU is required."),
-  brand_id: z.string().min(1, "Choose a brand."),
-  category_id: z.string().min(1, "Choose a category."),
-  description: z.string(),
-  short_description: z.string(),
-  price: z.string().trim().min(1, "Price is required."),
-  original_price: z.string(),
-  cost_price: z.string(),
-  stock_quantity: z
-    .number({ error: "Enter a number." })
-    .int("Enter a whole number.")
-    .min(0, "Stock cannot be negative."),
-  low_stock_threshold: z
-    .number({ error: "Enter a number." })
-    .int("Enter a whole number.")
-    .min(0, "Threshold cannot be negative."),
-  status: z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]),
-  is_indexable: z.boolean(),
-  fabric: z.string(),
-  care_instructions: z.string(),
-  authenticity_note: z.string(),
-  pieces: z.string(),
-  edit_note: z.string(),
-  video_url: z.string(),
-  keep_pre_order: z.boolean(),
-  is_featured: z.boolean(),
-  is_new: z.boolean(),
-  is_sale: z.boolean(),
-  is_just_in: z.boolean(),
-  sort_order: z
-    .number({ error: "Enter a number." })
-    .int("Enter a whole number."),
-  seo_title: z.string(),
-  seo_description: z.string(),
-  images: z.array(
-    z.object({
-      image_url: z.string().min(1),
-      alt_text: z.string().nullable(),
-    }),
-  ),
-  sizes_text: z.string(),
-  colors_text: z.string(),
-  collection_ids: z.array(z.string()),
-});
-
-type FormValues = z.infer<typeof schema>;
-
-function splitList(value: string): string[] {
-  return value
-    .split(/[\n,]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+function getNestedError(
+  errors: FieldErrors<ProductFormValues>,
+  path: string,
+): unknown {
+  const segments = path.split(".");
+  let current: unknown = errors;
+  for (const seg of segments) {
+    if (current == null || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[seg];
+  }
+  return current;
 }
+
+function fieldHasError(
+  errors: FieldErrors<ProductFormValues>,
+  field: FieldPath<ProductFormValues>,
+): boolean {
+  const value = getNestedError(errors, field as string);
+  if (value == null) return false;
+  if (Array.isArray(value)) {
+    return value.some(
+      (item) =>
+        item != null &&
+        typeof item === "object" &&
+        "message" in item &&
+        Boolean((item as { message?: string }).message),
+    );
+  }
+  if (typeof value === "object" && value !== null && "message" in value) {
+    return Boolean((value as { message?: string }).message);
+  }
+  return Boolean(value);
+}
+
+function groupHasErrors(
+  errors: FieldErrors<ProductFormValues>,
+  group: ProductFormGroup,
+): boolean {
+  return group.fields.some((field) => fieldHasError(errors, field));
+}
+
+const LAST_STEP_INDEX = PRODUCT_FORM_GROUPS.length - 1;
 
 export function ProductFormPage() {
   const { id } = useParams();
@@ -102,8 +99,21 @@ export function ProductFormPage() {
   const collections = useCollections({ page: 1, limit: 100 });
   const save = useSaveProduct();
   const canWrite = isNew ? canCreate : canUpdate;
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+
+  const [step, setStep] = useState(0);
+  const [maxStepReached, setMaxStepReached] = useState(0);
+  const [sectionOpen, setSectionOpen] = useState<Record<string, boolean>>(
+    () => {
+      const initial: Record<string, boolean> = {};
+      for (const group of PRODUCT_FORM_GROUPS) {
+        initial[group.id] = !group.optional;
+      }
+      return initial;
+    },
+  );
+
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productFormSchema),
     defaultValues: {
       name: "",
       slug: "",
@@ -190,6 +200,7 @@ export function ProductFormPage() {
   const selectedCollections =
     useWatch({ control: form.control, name: "collection_ids" }) ?? [];
   const images = useWatch({ control: form.control, name: "images" }) ?? [];
+  const watchedName = useWatch({ control: form.control, name: "name" });
 
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
@@ -198,7 +209,27 @@ export function ProductFormPage() {
       currentLocation.pathname !== nextLocation.pathname,
   );
 
-  async function onSubmit(values: FormValues) {
+  const onInvalid = useCallback(
+    (errors: FieldErrors<ProductFormValues>) => {
+      if (isNew) {
+        const index = PRODUCT_FORM_GROUPS.findIndex((group) =>
+          groupHasErrors(errors, group),
+        );
+        if (index >= 0) setStep(index);
+        return;
+      }
+      setSectionOpen((previous) => {
+        const next = { ...previous };
+        for (const group of PRODUCT_FORM_GROUPS) {
+          if (groupHasErrors(errors, group)) next[group.id] = true;
+        }
+        return next;
+      });
+    },
+    [isNew],
+  );
+
+  async function onSubmit(values: ProductFormValues) {
     try {
       const saved = await save.mutateAsync({
         id,
@@ -251,6 +282,447 @@ export function ProductFormPage() {
     }
   }
 
+  const currentGroup = PRODUCT_FORM_GROUPS[step];
+
+  const goNext = useCallback(async () => {
+    const group = PRODUCT_FORM_GROUPS[step];
+    const ok = await form.trigger(
+      group.fields as FieldPath<ProductFormValues>[],
+    );
+    if (!ok) return;
+    setMaxStepReached((previous) => Math.max(previous, step + 1));
+    setStep((previous) => Math.min(previous + 1, LAST_STEP_INDEX));
+  }, [form, step]);
+
+  const goSkip = useCallback(() => {
+    const group = PRODUCT_FORM_GROUPS[step];
+    if (!group.optional) return;
+    setMaxStepReached((previous) => Math.max(previous, step + 1));
+    setStep((previous) => Math.min(previous + 1, LAST_STEP_INDEX));
+  }, [step]);
+
+  const goBack = useCallback(() => {
+    setStep((previous) => Math.max(0, previous - 1));
+  }, []);
+
+  const goToStep = useCallback(
+    (index: number) => {
+      if (index > maxStepReached) return;
+      setStep(index);
+    },
+    [maxStepReached],
+  );
+
+  const errors = form.formState.errors;
+
+  const stepSummaries = useMemo(() => {
+    return PRODUCT_FORM_GROUPS.map((group, index) => {
+      const hasErr = groupHasErrors(errors, group);
+      const completed = index < step;
+      const current = index === step;
+      const unlocked = index <= maxStepReached;
+      return { group, index, hasErr, completed, current, unlocked };
+    });
+  }, [errors, step, maxStepReached]);
+
+  function renderGroupFields(groupId: string) {
+    switch (groupId) {
+      case "section-basics":
+        return (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" disabled={!canWrite} {...form.register("name")} />
+              <FieldError message={form.formState.errors.name?.message} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sku">SKU</Label>
+              <Input id="sku" disabled={!canWrite} {...form.register("sku")} />
+              <FieldError message={form.formState.errors.sku?.message} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="slug">Slug</Label>
+              <Input
+                id="slug"
+                disabled={!canWrite}
+                placeholder="Generated if left blank"
+                {...form.register("slug")}
+              />
+              <FieldError message={form.formState.errors.slug?.message} />
+              <ProductSlugHint
+                control={form.control}
+                isActiveEdit={!isNew && existing.data?.status === "ACTIVE"}
+                originalSlug={existing.data?.slug}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="brand_id">Brand</Label>
+              <NativeSelect
+                id="brand_id"
+                disabled={!canWrite}
+                {...form.register("brand_id")}
+              >
+                <option value="">Choose a label</option>
+                {(brands.data?.data ?? []).map((brand) => (
+                  <option key={brand.id} value={brand.id}>
+                    {brand.name}
+                  </option>
+                ))}
+              </NativeSelect>
+              <FieldError message={form.formState.errors.brand_id?.message} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category_id">Category</Label>
+              <NativeSelect
+                id="category_id"
+                disabled={!canWrite}
+                {...form.register("category_id")}
+              >
+                <option value="">Choose a category</option>
+                {(categories.data?.data ?? []).map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </NativeSelect>
+              <p className="text-xs text-muted-foreground">
+                Lawn stays a fabric. New In is navigational, not a product
+                category.
+              </p>
+              <FieldError
+                message={form.formState.errors.category_id?.message}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <NativeSelect
+                id="status"
+                disabled={!canWrite}
+                {...form.register("status")}
+              >
+                <option value="DRAFT">Draft</option>
+                <option value="ACTIVE">Active</option>
+                <option value="ARCHIVED">Archived</option>
+              </NativeSelect>
+            </div>
+          </div>
+        );
+      case "section-pricing-stock":
+        return (
+          <>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="price">Price (PKR)</Label>
+                <Input
+                  id="price"
+                  disabled={!canWrite}
+                  {...form.register("price")}
+                />
+                <FieldError message={form.formState.errors.price?.message} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="original_price">Original price</Label>
+                <Input
+                  id="original_price"
+                  disabled={!canWrite}
+                  {...form.register("original_price")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cost_price">Cost price</Label>
+                <Input
+                  id="cost_price"
+                  disabled={!canWrite}
+                  {...form.register("cost_price")}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Admin only. Never shown on the storefront.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="stock_quantity">Stock</Label>
+                <Input
+                  id="stock_quantity"
+                  type="number"
+                  disabled={!canWrite || !isNew}
+                  {...form.register("stock_quantity", { valueAsNumber: true })}
+                />
+                <FieldError
+                  message={form.formState.errors.stock_quantity?.message}
+                />
+                {isNew ? (
+                  <p className="text-xs text-muted-foreground">
+                    Initial quantity writes a RESTOCK row. Later changes go
+                    through inventory adjustments.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Available {existing.data?.available_stock ?? 0} (reserved{" "}
+                    {existing.data?.reserved_stock ?? 0}).{" "}
+                    <Link
+                      className="underline"
+                      to={`/inventory/adjustments?product_id=${id}`}
+                    >
+                      Adjust stock
+                    </Link>
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="low_stock_threshold">Low stock threshold</Label>
+                <Input
+                  id="low_stock_threshold"
+                  type="number"
+                  disabled={!canWrite}
+                  {...form.register("low_stock_threshold", {
+                    valueAsNumber: true,
+                  })}
+                />
+                <FieldError
+                  message={form.formState.errors.low_stock_threshold?.message}
+                />
+              </div>
+            </div>
+          </>
+        );
+      case "section-images":
+        return (
+          <ImageUploadField
+            id="images"
+            label="Images"
+            folder="catalog"
+            multiple
+            disabled={!canWrite}
+            images={images}
+            onImagesChange={(value) =>
+              form.setValue("images", value, {
+                shouldDirty: true,
+                shouldValidate: true,
+              })
+            }
+          />
+        );
+      case "section-details":
+        return (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="short_description">Short description</Label>
+              <Textarea
+                id="short_description"
+                disabled={!canWrite}
+                {...form.register("short_description")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                disabled={!canWrite}
+                {...form.register("description")}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="fabric">Fabric</Label>
+                <Input
+                  id="fabric"
+                  disabled={!canWrite}
+                  placeholder="Lawn, Cambric, Cotton"
+                  {...form.register("fabric")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pieces">Pieces</Label>
+                <Input
+                  id="pieces"
+                  disabled={!canWrite}
+                  placeholder="Shirt, dupatta, trouser"
+                  {...form.register("pieces")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sizes_text">Sizes</Label>
+                <Input
+                  id="sizes_text"
+                  disabled={!canWrite}
+                  placeholder="Unstitched, or S, M, L"
+                  {...form.register("sizes_text")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="colors_text">Colors</Label>
+                <Input
+                  id="colors_text"
+                  disabled={!canWrite}
+                  placeholder="Ivory, Sand"
+                  {...form.register("colors_text")}
+                />
+              </div>
+            </div>
+          </>
+        );
+      case "section-notes-care":
+        return (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="edit_note">Product note</Label>
+              <Textarea
+                id="edit_note"
+                disabled={!canWrite}
+                {...form.register("edit_note")}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="authenticity_note">Authenticity note</Label>
+              <Textarea
+                id="authenticity_note"
+                disabled={!canWrite}
+                {...form.register("authenticity_note")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="care_instructions">Care</Label>
+              <Textarea
+                id="care_instructions"
+                disabled={!canWrite}
+                {...form.register("care_instructions")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="video_url">Video URL</Label>
+              <Input
+                id="video_url"
+                disabled={!canWrite}
+                {...form.register("video_url")}
+              />
+            </div>
+          </div>
+        );
+      case "section-organization":
+        return (
+          <>
+            <section className="space-y-3">
+              <p className="text-sm font-medium">Collections</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(collections.data?.data ?? []).map((collection) => (
+                  <label
+                    key={collection.id}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      disabled={!canWrite}
+                      checked={selectedCollections.includes(collection.id)}
+                      onChange={(event) => {
+                        const next = event.target.checked
+                          ? [...selectedCollections, collection.id]
+                          : selectedCollections.filter(
+                              (value) => value !== collection.id,
+                            );
+                        form.setValue("collection_ids", next, {
+                          shouldDirty: true,
+                        });
+                      }}
+                    />
+                    {collection.name}
+                  </label>
+                ))}
+              </div>
+            </section>
+            <div className="space-y-2">
+              <Label htmlFor="sort_order">Sort order</Label>
+              <Input
+                id="sort_order"
+                type="number"
+                disabled={!canWrite}
+                {...form.register("sort_order", { valueAsNumber: true })}
+              />
+              <FieldError
+                message={form.formState.errors.sort_order?.message}
+              />
+            </div>
+            <section className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  disabled={!canWrite}
+                  {...form.register("is_featured")}
+                />
+                Featured
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  disabled={!canWrite}
+                  {...form.register("is_new")}
+                />
+                New
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  disabled={!canWrite}
+                  {...form.register("is_sale")}
+                />
+                Sale
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  disabled={!canWrite}
+                  {...form.register("is_just_in")}
+                />
+                Just in
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  disabled={!canWrite}
+                  {...form.register("keep_pre_order")}
+                />
+                Keep as pre-order
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  disabled={!canWrite}
+                  {...form.register("is_indexable")}
+                />
+                Allow Search Engines to Index This Page
+              </label>
+            </section>
+          </>
+        );
+      case "section-seo":
+        return (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="seo_title">SEO title</Label>
+              <Input
+                id="seo_title"
+                disabled={!canWrite}
+                {...form.register("seo_title")}
+              />
+              <ProductSeoTitleGuidance control={form.control} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="seo_description">SEO description</Label>
+              <Textarea
+                id="seo_description"
+                disabled={!canWrite}
+                {...form.register("seo_description")}
+              />
+              <ProductSeoDescriptionGuidance control={form.control} />
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  }
+
   if (!isNew && existing.isLoading) {
     return <FormSkeleton fields={8} />;
   }
@@ -276,411 +748,222 @@ export function ProductFormPage() {
       <div className="xl:grid xl:grid-cols-[1fr_minmax(0,18rem)] xl:items-start xl:gap-8">
         <form
           id="product-form"
-          className="space-y-8 border border-border bg-card p-6"
+          className={cn(
+            "border border-border bg-card",
+            isNew ? "p-6" : "space-y-4 p-6",
+          )}
           noValidate
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={form.handleSubmit(onSubmit, onInvalid)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            if (event.target instanceof HTMLTextAreaElement) return;
+            if (!isNew) return;
+            if (step >= LAST_STEP_INDEX) return;
+            event.preventDefault();
+            void goNext();
+          }}
         >
-          <section id="section-basics" className="scroll-mt-28 space-y-4">
-            <h2 className="font-display text-2xl tracking-wide">Basics</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" disabled={!canWrite} {...form.register("name")} />
-            <FieldError message={form.formState.errors.name?.message} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="sku">SKU</Label>
-            <Input id="sku" disabled={!canWrite} {...form.register("sku")} />
-            <FieldError message={form.formState.errors.sku?.message} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="slug">Slug</Label>
-            <Input
-              id="slug"
-              disabled={!canWrite}
-              placeholder="Generated if left blank"
-              {...form.register("slug")}
-            />
-            <FieldError message={form.formState.errors.slug?.message} />
-            <ProductSlugHint
-              control={form.control}
-              isActiveEdit={!isNew && existing.data?.status === "ACTIVE"}
-              originalSlug={existing.data?.slug}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="brand_id">Brand</Label>
-            <NativeSelect
-              id="brand_id"
-              disabled={!canWrite}
-              {...form.register("brand_id")}
-            >
-              <option value="">Choose a label</option>
-              {(brands.data?.data ?? []).map((brand) => (
-                <option key={brand.id} value={brand.id}>
-                  {brand.name}
-                </option>
-              ))}
-            </NativeSelect>
-            <FieldError message={form.formState.errors.brand_id?.message} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="category_id">Category</Label>
-            <NativeSelect
-              id="category_id"
-              disabled={!canWrite}
-              {...form.register("category_id")}
-            >
-              <option value="">Choose a category</option>
-              {(categories.data?.data ?? []).map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </NativeSelect>
-            <p className="text-xs text-muted-foreground">
-              Lawn stays a fabric. New In is navigational, not a product
-              category.
-            </p>
-            <FieldError message={form.formState.errors.category_id?.message} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <NativeSelect
-              id="status"
-              disabled={!canWrite}
-              {...form.register("status")}
-            >
-              <option value="DRAFT">Draft</option>
-              <option value="ACTIVE">Active</option>
-              <option value="ARCHIVED">Archived</option>
-            </NativeSelect>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="sort_order">Sort order</Label>
-            <Input
-              id="sort_order"
-              type="number"
-              disabled={!canWrite}
-              {...form.register("sort_order", { valueAsNumber: true })}
-            />
-            <FieldError message={form.formState.errors.sort_order?.message} />
-          </div>
-        </div>
-        </section>
-
-        <section id="section-pricing" className="scroll-mt-28 space-y-4">
-          <h2 className="font-display text-2xl tracking-wide">Pricing</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="price">Price (PKR)</Label>
-              <Input id="price" disabled={!canWrite} {...form.register("price")} />
-              <FieldError message={form.formState.errors.price?.message} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="original_price">Original price</Label>
-              <Input id="original_price" disabled={!canWrite} {...form.register("original_price")} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cost_price">Cost price</Label>
-              <Input id="cost_price" disabled={!canWrite} {...form.register("cost_price")} />
-              <p className="text-xs text-muted-foreground">Admin only. Never shown on the storefront.</p>
-            </div>
-          </div>
-        </section>
-
-        <section id="section-details" className="scroll-mt-28 space-y-4">
-          <h2 className="font-display text-2xl tracking-wide">Details</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="fabric">Fabric</Label>
-              <Input
-                id="fabric"
-                disabled={!canWrite}
-                placeholder="Lawn, Cambric, Cotton"
-                {...form.register("fabric")}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pieces">Pieces</Label>
-              <Input
-                id="pieces"
-                disabled={!canWrite}
-                placeholder="Shirt, dupatta, trouser"
-                {...form.register("pieces")}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="sizes_text">Sizes</Label>
-              <Input
-                id="sizes_text"
-                disabled={!canWrite}
-                placeholder="Unstitched, or S, M, L"
-                {...form.register("sizes_text")}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="colors_text">Colors</Label>
-              <Input
-                id="colors_text"
-                disabled={!canWrite}
-                placeholder="Ivory, Sand"
-                {...form.register("colors_text")}
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            disabled={!canWrite}
-            {...form.register("description")}
-          />
-        </section>
-        <section className="space-y-2">
-          <Label htmlFor="edit_note">Product note</Label>
-          <Textarea
-            id="edit_note"
-            disabled={!canWrite}
-            {...form.register("edit_note")}
-          />
-        </section>
-        <section className="space-y-2">
-          <Label htmlFor="authenticity_note">Authenticity note</Label>
-          <Textarea
-            id="authenticity_note"
-            disabled={!canWrite}
-            {...form.register("authenticity_note")}
-          />
-        </section>
-        <section className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="care_instructions">Care</Label>
-            <Textarea
-              id="care_instructions"
-              disabled={!canWrite}
-              {...form.register("care_instructions")}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="video_url">Video URL</Label>
-            <Input
-              id="video_url"
-              disabled={!canWrite}
-              {...form.register("video_url")}
-            />
-            <Label htmlFor="short_description">Short description</Label>
-            <Textarea
-              id="short_description"
-              disabled={!canWrite}
-              {...form.register("short_description")}
-            />
-          </div>
-        </section>
-
-        <section>
-          <ImageUploadField
-            id="images"
-            label="Images"
-            folder="catalog"
-            multiple
-            disabled={!canWrite}
-            images={images}
-            onImagesChange={(value) =>
-              form.setValue("images", value, {
-                shouldDirty: true,
-                shouldValidate: true,
-              })
-            }
-          />
-        </section>
-
-        <section className="space-y-3">
-          <p className="text-sm font-medium">Collections</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(collections.data?.data ?? []).map((collection) => (
-              <label
-                key={collection.id}
-                className="flex items-center gap-2 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  disabled={!canWrite}
-                  checked={selectedCollections.includes(collection.id)}
-                  onChange={(event) => {
-                    const next = event.target.checked
-                      ? [...selectedCollections, collection.id]
-                      : selectedCollections.filter(
-                          (value) => value !== collection.id,
-                        );
-                    form.setValue("collection_ids", next, {
-                      shouldDirty: true,
-                    });
-                  }}
-                />
-                {collection.name}
-              </label>
-            ))}
-          </div>
-        </section>
-
-        <section className="flex flex-wrap gap-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              disabled={!canWrite}
-              {...form.register("is_featured")}
-            />
-            Featured
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              disabled={!canWrite}
-              {...form.register("is_new")}
-            />
-            New
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              disabled={!canWrite}
-              {...form.register("is_sale")}
-            />
-            Sale
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              disabled={!canWrite}
-              {...form.register("is_just_in")}
-            />
-            Just in
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              disabled={!canWrite}
-              {...form.register("keep_pre_order")}
-            />
-            Keep as pre-order
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              disabled={!canWrite}
-              {...form.register("is_indexable")}
-            />
-            Allow Search Engines to Index This Page
-          </label>
-        </section>
-
-        <section className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="stock_quantity">Stock</Label>
-            <Input
-              id="stock_quantity"
-              type="number"
-              disabled={!canWrite || !isNew}
-              {...form.register("stock_quantity", { valueAsNumber: true })}
-            />
-            <FieldError
-              message={form.formState.errors.stock_quantity?.message}
-            />
-            {isNew ? (
-              <p className="text-xs text-muted-foreground">
-                Initial quantity writes a RESTOCK row. Later changes go through
-                inventory adjustments.
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Available {existing.data?.available_stock ?? 0} (reserved{" "}
-                {existing.data?.reserved_stock ?? 0}).{" "}
-                <Link
-                  className="underline"
-                  to={`/inventory/adjustments?product_id=${id}`}
+          {isNew ? (
+            <div className="space-y-6">
+              <div className="overflow-x-auto pb-1">
+                <ol
+                  className="flex min-w-0 flex-wrap gap-2"
+                  aria-label="Add product steps"
                 >
-                  Adjust stock
-                </Link>
+                  {stepSummaries.map(
+                    ({ group, index, hasErr, completed, current, unlocked }) => (
+                      <li key={group.id}>
+                        <button
+                          type="button"
+                          disabled={!unlocked}
+                          onClick={() => goToStep(index)}
+                          className={cn(
+                            "flex min-w-[8rem] shrink-0 items-center gap-2 rounded border px-3 py-2 text-left text-sm transition-colors",
+                            current
+                              ? "border-primary bg-primary/10 font-medium"
+                              : "border-border bg-card hover:bg-muted/50",
+                            !unlocked && "cursor-not-allowed opacity-50",
+                          )}
+                        >
+                          <span className="flex size-6 shrink-0 items-center justify-center rounded-full border border-border text-xs">
+                            {completed ? (
+                              <span aria-hidden>✓</span>
+                            ) : (
+                              <span>{index + 1}</span>
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate">
+                            {group.title}
+                          </span>
+                          {hasErr ? (
+                            <span
+                              className="size-2 shrink-0 rounded-full bg-destructive"
+                              title="Has validation errors"
+                              aria-label="Has validation errors"
+                            />
+                          ) : null}
+                        </button>
+                      </li>
+                    ),
+                  )}
+                </ol>
+              </div>
+
+              <div>
+                <h2 className="font-display text-2xl tracking-wide">
+                  {currentGroup.title}
+                </h2>
+                {currentGroup.optional ? (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Optional — skip if you want to fill this later.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-4">
+                {renderGroupFields(currentGroup.id)}
+              </div>
+
+              {canWrite ? (
+                <div className="rounded border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground">Summary</p>
+                  <p className="mt-1">
+                    {watchedName?.trim()
+                      ? watchedName
+                      : "New piece — save on the last step to create."}
+                  </p>
+                  {form.formState.isDirty ? (
+                    <p className="mt-2 text-warning">Unsaved changes</p>
+                  ) : (
+                    <p className="mt-2">No unsaved edits.</p>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <>
+              {PRODUCT_FORM_GROUPS.map((group) => (
+                <FormSection
+                  key={group.id}
+                  id={group.id}
+                  title={group.title}
+                  optional={group.optional}
+                  open={sectionOpen[group.id]}
+                  onOpenChange={(open) =>
+                    setSectionOpen((previous) => ({
+                      ...previous,
+                      [group.id]: open,
+                    }))
+                  }
+                  defaultOpen={!group.optional}
+                  hasError={groupHasErrors(errors, group)}
+                >
+                  {renderGroupFields(group.id)}
+                </FormSection>
+              ))}
+              {canWrite ? null : (
+                <p className="text-sm text-muted-foreground">
+                  You can view this piece, but STAFF cannot change it.
+                </p>
+              )}
+            </>
+          )}
+        </form>
+
+        {!isNew ? (
+          <aside className="mt-6 space-y-3 border border-border bg-card p-5 xl:sticky xl:top-4 xl:mt-0">
+            <h2 className="font-display text-xl">On this page</h2>
+            <nav
+              aria-label="Section anchors"
+              className="flex flex-col gap-2 text-sm"
+            >
+              {PRODUCT_FORM_GROUPS.map((group) => (
+                <a
+                  key={group.id}
+                  className="underline-offset-2 hover:underline"
+                  href={`#${group.id}`}
+                >
+                  {group.title}
+                </a>
+              ))}
+            </nav>
+            <div className="border-t border-border pt-3">
+              <h3 className="font-medium">Summary</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {existing.data?.name ?? "Product"}
               </p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="low_stock_threshold">Low stock threshold</Label>
-            <Input
-              id="low_stock_threshold"
-              type="number"
-              disabled={!canWrite}
-              {...form.register("low_stock_threshold", { valueAsNumber: true })}
-            />
-            <FieldError
-              message={form.formState.errors.low_stock_threshold?.message}
-            />
-          </div>
-        </section>
-
-        <section id="section-seo" className="scroll-mt-28 space-y-4">
-          <h2 className="font-display text-2xl tracking-wide">SEO</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="seo_title">SEO title</Label>
-              <Input id="seo_title" disabled={!canWrite} {...form.register("seo_title")} />
-              <ProductSeoTitleGuidance control={form.control} />
+              {form.formState.isDirty ? (
+                <p className="mt-2 text-sm text-warning">Unsaved changes</p>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  No unsaved edits.
+                </p>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="seo_description">SEO description</Label>
-              <Textarea id="seo_description" disabled={!canWrite} {...form.register("seo_description")} />
-              <ProductSeoDescriptionGuidance control={form.control} />
-            </div>
-          </div>
-        </section>
-
-        {canWrite ? null : (
-          <p className="text-sm text-muted-foreground">You can view this piece, but STAFF cannot change it.</p>
-        )}
-      </form>
-
-        <aside className="mt-6 space-y-3 border border-border bg-card p-5 xl:sticky xl:top-4 xl:mt-0">
-          <h2 className="font-display text-xl">On this page</h2>
-          <nav aria-label="Section anchors" className="flex flex-col gap-2 text-sm">
-            <a className="underline-offset-2 hover:underline" href="#section-basics">
-              Basics
-            </a>
-            <a className="underline-offset-2 hover:underline" href="#section-pricing">
-              Pricing
-            </a>
-            <a className="underline-offset-2 hover:underline" href="#section-details">
-              Details
-            </a>
-            <a className="underline-offset-2 hover:underline" href="#section-seo">
-              SEO
-            </a>
-          </nav>
-          <div className="border-t border-border pt-3">
-            <h3 className="font-medium">Summary</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {isNew ? "New piece — save to create." : (existing.data?.name ?? "Product")}
-            </p>
-            {form.formState.isDirty ? (
-              <p className="mt-2 text-sm text-warning">Unsaved changes</p>
-            ) : (
-              <p className="mt-2 text-sm text-muted-foreground">No unsaved edits.</p>
-            )}
-          </div>
-        </aside>
+          </aside>
+        ) : null}
       </div>
 
       {canWrite ? (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 p-4 backdrop-blur-sm supports-[backdrop-filter]:bg-card/80">
           <div className="mx-auto flex max-w-3xl flex-wrap gap-3 sm:flex-nowrap">
-            <Button type="button" variant="outline" className="min-h-11 flex-1 sm:min-h-10" asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 flex-1 sm:min-h-10"
+              asChild
+            >
               <Link to="/products">Cancel</Link>
             </Button>
-            <Button type="submit" form="product-form" className="min-h-11 flex-1 sm:min-h-10" pending={save.isPending}>
-              {save.isPending ? "Saving" : "Save product"}
-            </Button>
+            {isNew && step > 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 flex-1 sm:min-h-10"
+                onClick={goBack}
+              >
+                Back
+              </Button>
+            ) : null}
+            {isNew && currentGroup.optional && step < LAST_STEP_INDEX ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 flex-1 sm:min-h-10"
+                onClick={goSkip}
+              >
+                Skip
+              </Button>
+            ) : null}
+            {isNew && step < LAST_STEP_INDEX ? (
+              <Button
+                type="button"
+                className="min-h-11 flex-1 sm:min-h-10"
+                onClick={() => void goNext()}
+              >
+                Next
+              </Button>
+            ) : null}
+            {isNew && step >= LAST_STEP_INDEX ? (
+              <Button
+                type="submit"
+                form="product-form"
+                className="min-h-11 flex-1 sm:min-h-10"
+                pending={save.isPending}
+              >
+                {save.isPending ? "Saving" : "Save product"}
+              </Button>
+            ) : null}
+            {!isNew ? (
+              <Button
+                type="submit"
+                form="product-form"
+                className="min-h-11 flex-1 sm:min-h-10"
+                pending={save.isPending}
+              >
+                {save.isPending ? "Saving" : "Save product"}
+              </Button>
+            ) : null}
           </div>
         </div>
       ) : null}
