@@ -12,8 +12,8 @@ export const CardHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDiv
   <div className={cn("flex flex-col space-y-1.5 p-5", className)} {...props} />
 );
 
-export const CardTitle = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("font-display text-xl leading-none", className)} {...props} />
+export const CardTitle = ({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+  <h3 className={cn("font-display text-xl leading-none", className)} {...props} />
 );
 
 export const CardDescription = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

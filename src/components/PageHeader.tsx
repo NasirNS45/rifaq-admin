@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { FrameSpinner } from "@/components/loading";
+import { formatCountLabel } from "@/lib/utils";
 
 export function PageHeader({
   eyebrow,
@@ -17,12 +18,10 @@ export function PageHeader({
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <p className="text-xs font-semibold tracking-[0.22em] text-accent uppercase">{eyebrow}</p>
+        <p className="eyebrow text-accent-text">{eyebrow}</p>
         <h1 className="mt-1 font-display text-4xl tracking-wide text-foreground">{title}</h1>
         {description ? (
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            {description}
-          </p>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
         ) : null}
       </div>
       {action}
@@ -34,13 +33,18 @@ export function EmptyState({
   title,
   body,
   action,
+  variant = "empty",
 }: {
   title: string;
   body: string;
   action?: { to: string; label: string };
+  variant?: "empty" | "error";
 }) {
   return (
-    <div className="border border-border bg-white p-8">
+    <div
+      className="border border-border bg-white p-8"
+      role={variant === "error" ? "alert" : undefined}
+    >
       <h2 className="font-display text-2xl tracking-wide text-foreground">{title}</h2>
       <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">{body}</p>
       {action ? (
@@ -73,9 +77,13 @@ export function LoadingState({
   );
 }
 
-export function FieldError({ message }: { message?: string }) {
+export function FieldError({ message, id }: { message?: string; id?: string }) {
   if (!message) return null;
-  return <p className="text-xs text-destructive">{message}</p>;
+  return (
+    <p id={id} role="alert" className="text-xs text-destructive">
+      {message}
+    </p>
+  );
 }
 
 export function rowNumber(page: number, limit: number, index: number): number {
@@ -106,22 +114,49 @@ export function PaginationBar({
   onPage: (page: number) => void;
 }) {
   const pages = Math.max(1, Math.ceil(total / limit));
+  const summary =
+    total === 0
+      ? "No results."
+      : `${formatCountLabel(total, "result")}. Page ${page} of ${pages}.`;
   return (
-    <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
-      <p>
-        {total} results. Page {page} of {pages}.
-      </p>
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+    <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+      <p>{summary}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="touch-target sm:min-h-0 sm:min-w-0"
+          disabled={page <= 1}
+          onClick={() => onPage(1)}
+        >
+          First
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="touch-target sm:min-h-0 sm:min-w-0"
+          disabled={page <= 1}
+          onClick={() => onPage(page - 1)}
+        >
           Previous
         </Button>
         <Button
           variant="outline"
           size="sm"
+          className="touch-target sm:min-h-0 sm:min-w-0"
           disabled={page >= pages}
           onClick={() => onPage(page + 1)}
         >
           Next
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="touch-target sm:min-h-0 sm:min-w-0"
+          disabled={page >= pages}
+          onClick={() => onPage(pages)}
+        >
+          Last
         </Button>
       </div>
     </div>

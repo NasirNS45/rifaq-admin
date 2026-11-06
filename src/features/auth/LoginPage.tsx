@@ -3,10 +3,9 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { BrandLockup } from "@/components/BrandMark";
-import { FieldError } from "@/components/PageHeader";
+import { FormField } from "@/components/FormField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useLogin } from "@/hooks/useAuth";
 import { ApiError } from "@/lib/api";
 
@@ -41,12 +40,10 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8F8F6] px-4">
-      <div className="w-full max-w-md border border-border bg-white p-8 shadow-soft sm:p-10 fade-up">
+    <div className="flex min-h-dvh items-center justify-center bg-muted px-4">
+      <div className="w-full max-w-md border border-border bg-card p-8 shadow-soft sm:p-10 fade-up">
         <BrandLockup className="mx-auto h-28 w-auto" />
-        <p className="mt-6 text-center text-xs font-semibold tracking-[0.22em] text-accent uppercase">
-          Internal console
-        </p>
+        <p className="mt-6 text-center eyebrow text-accent-text">Internal console</p>
         <h1 className="mt-2 text-center font-display text-4xl tracking-wide text-foreground">
           Admin
         </h1>
@@ -54,22 +51,17 @@ export function LoginPage() {
           Sign in to manage products, orders, and WhatsApp confirmations.
         </p>
         <form className="mt-8 space-y-5" noValidate onSubmit={form.handleSubmit(onSubmit)}>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="text" autoComplete="email" {...form.register("email")} />
-            <FieldError message={form.formState.errors.email?.message} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              {...form.register("password")}
-            />
-            <FieldError message={form.formState.errors.password?.message} />
-          </div>
-          <Button type="submit" className="h-11 w-full eyebrow" pending={login.isPending}>
+          <FormField
+            id="email"
+            label="Email"
+            error={form.formState.errors.email?.message}
+          >
+            <Input type="email" inputMode="email" autoComplete="email" {...form.register("email")} />
+          </FormField>
+          <FormField id="password" label="Password" error={form.formState.errors.password?.message}>
+            <Input type="password" autoComplete="current-password" {...form.register("password")} />
+          </FormField>
+          <Button type="submit" className="w-full eyebrow" pending={login.isPending}>
             {login.isPending ? "Signing in" : "Sign in"}
           </Button>
         </form>

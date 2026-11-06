@@ -96,7 +96,9 @@ export function CustomerDetailPage() {
   const customer = customerQuery.data;
 
   if (customerQuery.isError) {
-    return <EmptyState title="Customer not found" body="This customer could not be loaded." />;
+    return (
+      <EmptyState variant="error" title="Customer not found" body="This customer could not be loaded." />
+    );
   }
   if (customerQuery.isLoading || !customer) {
     return <FormSkeleton />;

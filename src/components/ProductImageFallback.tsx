@@ -12,16 +12,14 @@ export function ProductImageFallback({
   return (
     <span
       className={cn(
-        "flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[#F4F4F0] px-2 text-center",
+        "flex h-full w-full flex-col items-center justify-center gap-1.5 bg-surface-sunken px-2 text-center",
         className,
       )}
       role="img"
       aria-label={label}
     >
       <BrandMark className="h-7 w-7 opacity-70" />
-      <span className="text-[8px] font-medium tracking-[0.2em] text-[#111111] uppercase">
-        RIFAQ ATELIER
-      </span>
+      <span className="text-2xs font-medium tracking-[0.2em] text-foreground uppercase">RIFAQ ATELIER</span>
     </span>
   );
 }

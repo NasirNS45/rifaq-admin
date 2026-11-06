@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useMemo } from "react";
+import { Link } from "react-router";
+import { DebouncedSearchInput } from "@/components/ListFilters";
+import { StackedOnMobile } from "@/components/StackedOnMobile";
 import { TableSkeleton } from "@/components/loading";
 import { EmptyState, PageHeader, PaginationBar, rowNumber } from "@/components/PageHeader";
-import { Badge } from "@/components/ui/badge";
+import { EnumBadge, OrderStatusBadge, PaymentStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -13,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useListFilters } from "@/hooks/useListFilters";
 import { useOrders } from "@/hooks/useOrders";
 import { cn, formatPkr } from "@/lib/utils";
 
@@ -54,118 +56,160 @@ const COPY: Record<OrderGroup, { label: string; description: string; empty: stri
   },
 };
 
-function parseGroup(value: string | null): OrderGroup {
+function parseGroup(value: string): OrderGroup {
   if (value && GROUPS.includes(value as OrderGroup)) return value as OrderGroup;
   return "all";
 }
 
+const LIMIT = 20;
+
 export function OrderListPage() {
-  const [params, setParams] = useSearchParams();
-  const group = parseGroup(params.get("status"));
+  const defaults = useMemo(() => ({ q: "", status: "" }), []);
+  const { values, set, page, setPage } = useListFilters(defaults);
+  const group = parseGroup(values.status);
   const copy = COPY[group];
-  const [q, setQ] = useState("");
-  const [page, setPage] = useState(1);
+
   const orders = useOrders({
-    q,
+    q: values.q || undefined,
     page,
-    limit: 20,
+    limit: LIMIT,
     status: group === "all" ? undefined : group,
   });
 
   function setGroup(next: OrderGroup) {
-    const nextParams = new URLSearchParams(params);
-    if (next === "all") nextParams.delete("status");
-    else nextParams.set("status", next);
-    setParams(nextParams, { replace: true });
-    setPage(1);
+    set({ status: next === "all" ? "" : next });
   }
+
+  const tableView =
+    !orders.isLoading && !orders.isError && orders.data?.data.length ? (
+      <div className="border border-border bg-card">
+        <Table>
+          <caption className="sr-only">Orders for {copy.label}</caption>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="sticky left-0 z-[1] min-w-[3rem] bg-card">#</TableHead>
+              <TableHead>Order</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Total</TableHead>
+              <TableHead>Payment</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {orders.data.data.map((order, index) => (
+              <TableRow key={order.id}>
+                <TableCell className="sticky left-0 z-[1] bg-card">{rowNumber(page, LIMIT, index)}</TableCell>
+                <TableCell>
+                  <p>{order.order_number}</p>
+                  <EnumBadge value={order.fulfillment} className="mt-1" />
+                </TableCell>
+                <TableCell>
+                  <p>{order.customer_name}</p>
+                  <p className="text-xs text-muted-foreground">{order.customer_phone}</p>
+                </TableCell>
+                <TableCell>{formatPkr(order.total)}</TableCell>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <PaymentStatusBadge status={order.payment_status} />
+                    <EnumBadge value={order.payment_method} />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <OrderStatusBadge status={order.status} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button asChild variant="outline" size="sm" className="touch-target sm:min-h-0 sm:min-w-0">
+                    <Link to={`/orders/${order.id}`}>Open</Link>
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    ) : null;
+
+  const stackView =
+    !orders.isLoading && !orders.isError && orders.data?.data.length ? (
+      <>
+        {orders.data.data.map((order, index) => (
+          <div key={order.id} className="space-y-3 border border-border bg-card p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="font-medium">{order.order_number}</p>
+                <p className="text-xs text-muted-foreground">#{rowNumber(page, LIMIT, index)}</p>
+              </div>
+              <OrderStatusBadge status={order.status} />
+            </div>
+            <p>{order.customer_name}</p>
+            <p className="text-sm text-muted-foreground">{order.customer_phone}</p>
+            <p className="font-medium">{formatPkr(order.total)}</p>
+            <div className="flex flex-wrap gap-2">
+              <PaymentStatusBadge status={order.payment_status} />
+              <EnumBadge value={order.payment_method} />
+              <EnumBadge value={order.fulfillment} />
+            </div>
+            <Button asChild className="w-full touch-target sm:min-h-0">
+              <Link to={`/orders/${order.id}`}>Open</Link>
+            </Button>
+          </div>
+        ))}
+      </>
+    ) : null;
 
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Orders" title="Orders" description={copy.description} />
-      <div className="flex flex-wrap gap-1 border-b border-border">
-        {GROUPS.map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => setGroup(item)}
-            className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-sm",
-              group === item
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {COPY[item].label}
-          </button>
-        ))}
-      </div>
-      <form
-        className="flex max-w-md gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const form = new FormData(event.currentTarget);
-          setQ(String(form.get("q") ?? ""));
-          setPage(1);
-        }}
+
+      <div
+        role="tablist"
+        aria-label="Order status"
+        className="flex flex-wrap gap-1 border-b border-border"
       >
-        <Input name="q" placeholder="Search order, name, or phone" defaultValue={q} />
-        <Button type="submit" variant="outline" pending={orders.isFetching}>
-          {orders.isFetching ? "Searching" : "Search"}
-        </Button>
-      </form>
+        {GROUPS.map((item) => {
+          const selected = group === item;
+          return (
+            <button
+              key={item}
+              type="button"
+              role="tab"
+              id={`order-tab-${item}`}
+              aria-selected={selected}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => setGroup(item)}
+              className={cn(
+                "-mb-px touch-target min-h-11 border-b-2 px-3 py-2 text-sm sm:min-h-0",
+                selected
+                  ? "border-foreground text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {COPY[item].label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="max-w-md">
+        <DebouncedSearchInput
+          value={values.q}
+          onDebouncedChange={(next) => set({ q: next })}
+          placeholder="Search order, name, or phone"
+        />
+      </div>
+
       {orders.isLoading ? (
-        <TableSkeleton columns={["#", "Order", "Customer", "Total", "Payment", "Status"]} />
+        <TableSkeleton columns={["#", "Order", "Customer", "Total", "Payment", "Status", ""]} />
       ) : orders.isError ? (
-        <EmptyState title="Could not load orders" body="The order list could not be fetched." />
+        <EmptyState variant="error" title="Could not load orders" body="The order list could not be fetched." />
       ) : !orders.data?.data.length ? (
         <EmptyState title="No orders" body={copy.empty} />
       ) : (
-        <div className="border border-border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">#</TableHead>
-                <TableHead>Order</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.data.data.map((order, index) => (
-                <TableRow key={order.id}>
-                  <TableCell>{rowNumber(page, 20, index)}</TableCell>
-                  <TableCell>
-                    <p>{order.order_number}</p>
-                    <p className="text-xs text-muted-foreground">{order.fulfillment}</p>
-                  </TableCell>
-                  <TableCell>
-                    <p>{order.customer_name}</p>
-                    <p className="text-xs text-muted-foreground">{order.customer_phone}</p>
-                  </TableCell>
-                  <TableCell>{formatPkr(order.total)}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{order.payment_status}</Badge>{" "}
-                    <span className="text-xs text-muted-foreground">{order.payment_method}</span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{order.status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild variant="ghost" size="sm">
-                      <Link to={`/orders/${order.id}`}>Open</Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <StackedOnMobile table={tableView} stack={stackView} />
       )}
-      <PaginationBar page={page} limit={20} total={orders.data?.total ?? 0} onPage={setPage} />
+
+      <PaginationBar page={page} limit={LIMIT} total={orders.data?.total ?? 0} onPage={setPage} />
     </div>
   );
 }

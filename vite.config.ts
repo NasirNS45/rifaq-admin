@@ -11,6 +11,23 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (id.includes("node_modules/recharts")) return "recharts";
+            if (
+              id.includes("node_modules/react-hook-form") ||
+              id.includes("node_modules/zod") ||
+              id.includes("node_modules/@hookform/resolvers")
+            ) {
+              return "forms";
+            }
+            return undefined;
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         "@": path.resolve(import.meta.dirname, "./src"),

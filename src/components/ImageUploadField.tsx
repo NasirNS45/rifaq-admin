@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError, api, mediaPreviewUrl } from "@/lib/api";
 import type { MediaAsset, MediaFolder } from "@/types/api";
@@ -72,19 +73,23 @@ function PreviewThumb({
   const [broken, setBroken] = useState(false);
 
   return (
-    <div className="relative h-28 w-28 border border-border bg-[#F4F4F0]">
+    <div className="relative h-28 w-28 border border-border bg-surface-sunken">
       {broken || !src.trim() ? (
         <ProductImageFallback />
       ) : (
         <img
           src={mediaPreviewUrl(src)}
           alt={alt}
+          width={112}
+          height={112}
+          loading="lazy"
+          decoding="async"
           className="h-full w-full object-cover"
           onError={() => setBroken(true)}
         />
       )}
       {isPrimary ? (
-        <span className="absolute top-1 left-1 bg-[#111111] px-1.5 py-0.5 text-[10px] tracking-wide text-white uppercase">
+        <span className="absolute top-1 left-1 bg-primary px-1.5 py-0.5 text-2xs tracking-wide text-primary-foreground uppercase">
           Primary
         </span>
       ) : null}
@@ -94,18 +99,18 @@ function PreviewThumb({
             type="button"
             aria-label="Remove image"
             onClick={onRemove}
-            className="absolute right-1 top-1 cursor-pointer bg-background/90 p-1 text-foreground hover:bg-background"
+            className="absolute right-1 top-1 touch-target cursor-pointer bg-card/90 p-1 text-foreground after:absolute after:-inset-2 after:content-[''] hover:bg-card sm:min-h-0 sm:min-w-0 sm:after:content-none"
           >
             <X className="h-3.5 w-3.5" />
           </button>
           {canMoveLeft || canMoveRight ? (
-            <div className="absolute inset-x-1 bottom-1 flex justify-between">
+            <div className="absolute inset-x-1 bottom-1 flex justify-between gap-1">
               <button
                 type="button"
                 aria-label="Move earlier"
                 disabled={!canMoveLeft}
                 onClick={onMoveLeft}
-                className="cursor-pointer bg-background/90 p-1 disabled:cursor-not-allowed disabled:opacity-30"
+                className="touch-target cursor-pointer bg-card/90 p-1 disabled:cursor-not-allowed disabled:opacity-30 sm:min-h-0 sm:min-w-0"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
@@ -114,7 +119,7 @@ function PreviewThumb({
                 aria-label="Move later"
                 disabled={!canMoveRight}
                 onClick={onMoveRight}
-                className="cursor-pointer bg-background/90 p-1 disabled:cursor-not-allowed disabled:opacity-30"
+                className="touch-target cursor-pointer bg-card/90 p-1 disabled:cursor-not-allowed disabled:opacity-30 sm:min-h-0 sm:min-w-0"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
@@ -291,7 +296,7 @@ export const ImageUploadField = ({
                 }}
               />
               {structured ? (
-                <input
+                <Input
                   type="text"
                   aria-label={`Alt text for image ${index + 1}`}
                   placeholder="Alt text"
@@ -307,7 +312,7 @@ export const ImageUploadField = ({
                       ),
                     )
                   }
-                  className="h-8 w-28 border border-input bg-background px-2 text-xs"
+                  className="h-9 w-28 max-w-full text-xs"
                 />
               ) : null}
             </div>

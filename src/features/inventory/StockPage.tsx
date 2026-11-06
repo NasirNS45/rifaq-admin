@@ -80,7 +80,7 @@ export function StockPage() {
       {stock.isLoading ? (
         <TableSkeleton columns={["#", "Piece", "SKU", "Current", "Reserved", "Available", "Availability"]} />
       ) : stock.isError ? (
-        <EmptyState title="Could not load stock" body="Inventory figures could not be fetched." />
+        <EmptyState variant="error" title="Could not load stock" body="Inventory figures could not be fetched." />
       ) : !stock.data?.data.length ? (
         <EmptyState
           title="No stock to show"

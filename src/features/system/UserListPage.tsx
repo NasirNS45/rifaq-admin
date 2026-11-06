@@ -85,6 +85,7 @@ export function UserListPage() {
         <TableSkeleton columns={["#", "Name", "Email", "Role", "Status"]} />
       ) : !canReadUsers || users.isError ? (
         <EmptyState
+          variant="error"
           title="Could not load admin users"
           body="You need users.read to view this list."
         />

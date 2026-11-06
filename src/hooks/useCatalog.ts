@@ -40,11 +40,14 @@ function searchParams(
   return encoded ? `?${encoded}` : "";
 }
 
+const STATIC_LIST_STALE_MS = 5 * 60_000;
+
 export function useBrands(params: ListParams) {
   return useQuery({
     queryKey: ["brands", params],
     queryFn: () => api.getPage<Brand>(`/api/v1/brands${searchParams(params)}`),
     placeholderData: keepPreviousData,
+    staleTime: STATIC_LIST_STALE_MS,
   });
 }
 
@@ -81,6 +84,7 @@ export function useCategories(params: ListParams) {
     queryFn: () =>
       api.getPage<Category>(`/api/v1/categories${searchParams(params)}`),
     placeholderData: keepPreviousData,
+    staleTime: STATIC_LIST_STALE_MS,
   });
 }
 
@@ -117,6 +121,7 @@ export function useCollections(params: ListParams) {
     queryFn: () =>
       api.getPage<Collection>(`/api/v1/collections${searchParams(params)}`),
     placeholderData: keepPreviousData,
+    staleTime: STATIC_LIST_STALE_MS,
   });
 }
 

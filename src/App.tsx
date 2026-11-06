@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
+import { RouteAnnouncer, RouteFocusMain } from "@/components/RouteAnnouncer";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { queryClient, useAccessToken, useCurrentUser } from "@/hooks/useAuth";
+import { useAccessToken, useCurrentUser } from "@/hooks/useAuth";
+import { queryClient } from "@/lib/queryClient";
 import { subscribeSessionExpired } from "@/lib/api";
 
 const LoginPage = lazy(() =>
@@ -120,10 +122,12 @@ function LoginGate() {
 export function App() {
   return (
     <>
+      <RouteAnnouncer />
+      <RouteFocusMain />
       <SessionExpiredBridge />
       <Suspense
         fallback={
-          <div className="flex min-h-screen items-center justify-center" role="status">
+          <div className="flex min-h-dvh items-center justify-center" role="status">
             Loading page...
           </div>
         }

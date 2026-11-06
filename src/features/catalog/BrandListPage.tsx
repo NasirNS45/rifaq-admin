@@ -78,7 +78,7 @@ export function BrandListPage() {
       {brands.isLoading ? (
         <TableSkeleton columns={["#", "Name", "Slug", "Status"]} />
       ) : brands.isError ? (
-        <EmptyState title="Could not load brands" body="The catalogue labels could not be fetched. Try again in a moment." />
+        <EmptyState variant="error" title="Could not load brands" body="The catalogue labels could not be fetched. Try again in a moment." />
       ) : !brands.data?.data.length ? (
         <EmptyState
           title="No brands yet"

@@ -78,7 +78,7 @@ export function CategoryListPage() {
       {categories.isLoading ? (
         <TableSkeleton columns={["#", "Name", "Slug", "Status"]} />
       ) : categories.isError ? (
-        <EmptyState title="Could not load categories" body="Try again in a moment." />
+        <EmptyState variant="error" title="Could not load categories" body="Try again in a moment." />
       ) : !categories.data?.data.length ? (
         <EmptyState
           title="No categories yet"

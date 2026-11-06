@@ -128,7 +128,7 @@ export function AdjustmentsPage() {
       {ledger.isLoading ? (
         <TableSkeleton columns={["#", "When", "Piece", "Type", "Qty", "Reason"]} />
       ) : ledger.isError ? (
-        <EmptyState title="Could not load the ledger" body="Inventory adjustments could not be fetched." />
+        <EmptyState variant="error" title="Could not load the ledger" body="Inventory adjustments could not be fetched." />
       ) : !ledger.data?.data.length ? (
         <EmptyState
           title="No adjustments yet"

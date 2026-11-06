@@ -1,11 +1,16 @@
 import { useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useBlocker, useNavigate, useParams } from "react-router";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ImageUploadField } from "@/components/ImageUploadField";
-import { SeoTextGuidance } from "@/components/SeoTextGuidance";
+import {
+  ProductSeoDescriptionGuidance,
+  ProductSeoTitleGuidance,
+  ProductSlugHint,
+} from "@/components/ProductFormWatchers";
 import { FormSkeleton } from "@/components/loading";
 import { FieldError, PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -185,12 +190,13 @@ export function ProductFormPage() {
   const selectedCollections =
     useWatch({ control: form.control, name: "collection_ids" }) ?? [];
   const images = useWatch({ control: form.control, name: "images" }) ?? [];
-  const slugValue = useWatch({ control: form.control, name: "slug" }) ?? "";
-  const slugIsValid =
-    !slugValue || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slugValue);
-  const seoTitle = useWatch({ control: form.control, name: "seo_title" }) ?? "";
-  const seoDescription =
-    useWatch({ control: form.control, name: "seo_description" }) ?? "";
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      form.formState.isDirty &&
+      !save.isPending &&
+      currentLocation.pathname !== nextLocation.pathname,
+  );
 
   async function onSubmit(values: FormValues) {
     try {
@@ -260,18 +266,23 @@ export function ProductFormPage() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className={`relative space-y-6 ${canWrite ? "pb-28" : ""}`}>
       <PageHeader
         eyebrow="Catalog"
         title={isNew ? "Add product" : "Edit product"}
         description="Prices are PKR. Discount is always current price against original price. Brands are catalogue labels only."
       />
-      <form
-        className="space-y-8 border border-border bg-card p-6"
-        noValidate
-        onSubmit={form.handleSubmit(onSubmit)}
-      >
-        <section className="grid gap-4 sm:grid-cols-2">
+
+      <div className="xl:grid xl:grid-cols-[1fr_minmax(0,18rem)] xl:items-start xl:gap-8">
+        <form
+          id="product-form"
+          className="space-y-8 border border-border bg-card p-6"
+          noValidate
+          onSubmit={form.handleSubmit(onSubmit)}
+        >
+          <section id="section-basics" className="scroll-mt-28 space-y-4">
+            <h2 className="font-display text-2xl tracking-wide">Basics</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="name">Name</Label>
             <Input id="name" disabled={!canWrite} {...form.register("name")} />
@@ -291,23 +302,11 @@ export function ProductFormPage() {
               {...form.register("slug")}
             />
             <FieldError message={form.formState.errors.slug?.message} />
-            <p
-              className={`text-xs ${slugIsValid ? "text-muted-foreground" : "text-destructive"}`}
-            >
-              {slugIsValid
-                ? slugValue
-                  ? "Slug format is valid."
-                  : "A slug will be generated from the product name."
-                : "Use lowercase letters, numbers, and single hyphens."}
-            </p>
-            {!isNew &&
-            existing.data?.status === "ACTIVE" &&
-            slugValue !== existing.data.slug ? (
-              <p role="status" className="text-xs text-amber-700">
-                Modifying this slug will alter the live URL. A 301 permanent
-                redirect will be created for the old URL.
-              </p>
-            ) : null}
+            <ProductSlugHint
+              control={form.control}
+              isActiveEdit={!isNew && existing.data?.status === "ACTIVE"}
+              originalSlug={existing.data?.slug}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="brand_id">Brand</Label>
@@ -367,75 +366,68 @@ export function ProductFormPage() {
             />
             <FieldError message={form.formState.errors.sort_order?.message} />
           </div>
+        </div>
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-2">
-            <Label htmlFor="price">Price (PKR)</Label>
-            <Input
-              id="price"
-              disabled={!canWrite}
-              {...form.register("price")}
-            />
-            <FieldError message={form.formState.errors.price?.message} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="original_price">Original price</Label>
-            <Input
-              id="original_price"
-              disabled={!canWrite}
-              {...form.register("original_price")}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="cost_price">Cost price</Label>
-            <Input
-              id="cost_price"
-              disabled={!canWrite}
-              {...form.register("cost_price")}
-            />
-            <p className="text-xs text-muted-foreground">
-              Admin only. Never shown on the storefront.
-            </p>
+        <section id="section-pricing" className="scroll-mt-28 space-y-4">
+          <h2 className="font-display text-2xl tracking-wide">Pricing</h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="price">Price (PKR)</Label>
+              <Input id="price" disabled={!canWrite} {...form.register("price")} />
+              <FieldError message={form.formState.errors.price?.message} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="original_price">Original price</Label>
+              <Input id="original_price" disabled={!canWrite} {...form.register("original_price")} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cost_price">Cost price</Label>
+              <Input id="cost_price" disabled={!canWrite} {...form.register("cost_price")} />
+              <p className="text-xs text-muted-foreground">Admin only. Never shown on the storefront.</p>
+            </div>
           </div>
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="fabric">Fabric</Label>
-            <Input
-              id="fabric"
-              disabled={!canWrite}
-              placeholder="Lawn, Cambric, Cotton"
-              {...form.register("fabric")}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="pieces">Pieces</Label>
-            <Input
-              id="pieces"
-              disabled={!canWrite}
-              placeholder="Shirt, dupatta, trouser"
-              {...form.register("pieces")}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="sizes_text">Sizes</Label>
-            <Input
-              id="sizes_text"
-              disabled={!canWrite}
-              placeholder="Unstitched, or S, M, L"
-              {...form.register("sizes_text")}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="colors_text">Colors</Label>
-            <Input
-              id="colors_text"
-              disabled={!canWrite}
-              placeholder="Ivory, Sand"
-              {...form.register("colors_text")}
-            />
+        <section id="section-details" className="scroll-mt-28 space-y-4">
+          <h2 className="font-display text-2xl tracking-wide">Details</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="fabric">Fabric</Label>
+              <Input
+                id="fabric"
+                disabled={!canWrite}
+                placeholder="Lawn, Cambric, Cotton"
+                {...form.register("fabric")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pieces">Pieces</Label>
+              <Input
+                id="pieces"
+                disabled={!canWrite}
+                placeholder="Shirt, dupatta, trouser"
+                {...form.register("pieces")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sizes_text">Sizes</Label>
+              <Input
+                id="sizes_text"
+                disabled={!canWrite}
+                placeholder="Unstitched, or S, M, L"
+                {...form.register("sizes_text")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="colors_text">Colors</Label>
+              <Input
+                id="colors_text"
+                disabled={!canWrite}
+                placeholder="Ivory, Sand"
+                {...form.register("colors_text")}
+              />
+            </div>
           </div>
         </section>
 
@@ -629,37 +621,80 @@ export function ProductFormPage() {
           </div>
         </section>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="seo_title">SEO title</Label>
-            <Input
-              id="seo_title"
-              disabled={!canWrite}
-              {...form.register("seo_title")}
-            />
-            <SeoTextGuidance value={seoTitle} kind="title" />
+        <section id="section-seo" className="scroll-mt-28 space-y-4">
+          <h2 className="font-display text-2xl tracking-wide">SEO</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="seo_title">SEO title</Label>
+              <Input id="seo_title" disabled={!canWrite} {...form.register("seo_title")} />
+              <ProductSeoTitleGuidance control={form.control} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="seo_description">SEO description</Label>
+              <Textarea id="seo_description" disabled={!canWrite} {...form.register("seo_description")} />
+              <ProductSeoDescriptionGuidance control={form.control} />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="seo_description">SEO description</Label>
-            <Textarea
-              id="seo_description"
-              disabled={!canWrite}
-              {...form.register("seo_description")}
-            />
-            <SeoTextGuidance value={seoDescription} kind="description" />
-          </div>
-        </div>
+        </section>
 
-        {canWrite ? (
-          <Button type="submit" pending={save.isPending}>
-            {save.isPending ? "Saving" : "Save product"}
-          </Button>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            You can view this piece, but STAFF cannot change it.
-          </p>
+        {canWrite ? null : (
+          <p className="text-sm text-muted-foreground">You can view this piece, but STAFF cannot change it.</p>
         )}
       </form>
+
+        <aside className="mt-6 space-y-3 border border-border bg-card p-5 xl:sticky xl:top-4 xl:mt-0">
+          <h2 className="font-display text-xl">On this page</h2>
+          <nav aria-label="Section anchors" className="flex flex-col gap-2 text-sm">
+            <a className="underline-offset-2 hover:underline" href="#section-basics">
+              Basics
+            </a>
+            <a className="underline-offset-2 hover:underline" href="#section-pricing">
+              Pricing
+            </a>
+            <a className="underline-offset-2 hover:underline" href="#section-details">
+              Details
+            </a>
+            <a className="underline-offset-2 hover:underline" href="#section-seo">
+              SEO
+            </a>
+          </nav>
+          <div className="border-t border-border pt-3">
+            <h3 className="font-medium">Summary</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {isNew ? "New piece — save to create." : (existing.data?.name ?? "Product")}
+            </p>
+            {form.formState.isDirty ? (
+              <p className="mt-2 text-sm text-warning">Unsaved changes</p>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">No unsaved edits.</p>
+            )}
+          </div>
+        </aside>
+      </div>
+
+      {canWrite ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 p-4 backdrop-blur-sm supports-[backdrop-filter]:bg-card/80">
+          <div className="mx-auto flex max-w-3xl flex-wrap gap-3 sm:flex-nowrap">
+            <Button type="button" variant="outline" className="min-h-11 flex-1 sm:min-h-10" asChild>
+              <Link to="/products">Cancel</Link>
+            </Button>
+            <Button type="submit" form="product-form" className="min-h-11 flex-1 sm:min-h-10" pending={save.isPending}>
+              {save.isPending ? "Saving" : "Save product"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      <ConfirmDialog
+        open={blocker.state === "blocked"}
+        title="Discard unsaved changes?"
+        body="You have edits that are not saved yet. Leave without saving?"
+        confirmLabel="Leave"
+        onOpenChange={(open) => {
+          if (!open) blocker.reset?.();
+        }}
+        onConfirm={() => blocker.proceed?.()}
+      />
     </div>
   );
 }

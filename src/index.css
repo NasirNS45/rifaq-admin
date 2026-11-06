@@ -29,18 +29,32 @@
   --color-muted-foreground: #6b6b6b;
 
   --color-accent: #c5a059;
+  --color-accent-text: #8a6a2b;
   --color-accent-foreground: #111111;
 
   --color-destructive: #b42318;
   --color-destructive-foreground: #ffffff;
 
+  --color-success: #1f7a3d;
+  --color-warning: #8a5a00;
+  --color-info: #1d4f91;
+
+  --color-surface-sunken: #f4f4f0;
+
   --color-border: #e5e5e0;
   --color-input: #d1d5db;
   --color-ring: #111111;
 
+  --color-chart-1: #111111;
+  --color-chart-accent: #c5a059;
+  --color-chart-grid: #e5e5e0;
+  --color-chart-negative: #8c3b32;
+
   --radius: 0px;
 
   --shadow-soft: 0 1px 0 rgb(17 17 17 / 0.06), 0 8px 24px rgb(17 17 17 / 0.06);
+
+  --text-2xs: 0.6875rem;
 }
 
 @layer base {
@@ -50,7 +64,7 @@
 
   body {
     background-color: var(--color-background);
-    color: #333333;
+    color: var(--color-foreground);
     font-family: var(--font-sans);
     font-size: 14px;
     -webkit-font-smoothing: antialiased;
@@ -66,7 +80,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-foreground);
+    outline: 2px solid var(--color-ring);
     outline-offset: 2px;
   }
 }
@@ -88,7 +102,7 @@
 }
 
 @utility label-xs {
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
@@ -211,5 +225,111 @@
 
   .mark-fill {
     opacity: 1;
+  }
+}
+
+@keyframes rifaq-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes rifaq-dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.98);
+  }
+}
+
+@keyframes rifaq-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rifaq-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes rifaq-sheet-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes rifaq-sheet-out-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes rifaq-sheet-in-bottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes rifaq-sheet-out-bottom {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes rifaq-dropdown-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes rifaq-dialog-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes rifaq-dialog-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
   }
 }

@@ -22,10 +22,15 @@ export const TableRow = ({ className, ...props }: React.HTMLAttributes<HTMLTable
   <tr className={cn("border-b border-border transition-colors hover:bg-muted/50", className)} {...props} />
 );
 
-export const TableHead = ({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
+export const TableHead = ({
+  className,
+  scope = "col",
+  ...props
+}: React.ThHTMLAttributes<HTMLTableCellElement>) => (
   <th
+    scope={scope}
     className={cn(
-      "h-9 px-3 text-left align-middle text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground",
+      "h-9 px-3 text-left align-middle text-2xs font-medium uppercase tracking-[0.14em] text-muted-foreground",
       className,
     )}
     {...props}

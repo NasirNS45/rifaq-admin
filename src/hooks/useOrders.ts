@@ -2,7 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { api } from "@/lib/api";
 import type { CustomerAdmin, CustomerListItem, OrderAdmin, OrderListItem, OrderNote } from "@/types/api";
 
-function searchParams(params: Record<string, string | number | undefined>) {
+function searchParams(params: Record<string, string | number | undefined>): string {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === "") continue;

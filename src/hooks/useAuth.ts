@@ -1,16 +1,7 @@
 import { useSyncExternalStore } from "react";
-import { QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, getAccessToken, setAccessToken, subscribeAccessToken } from "@/lib/api";
 import type { AdminUser, DashboardResponse, TokenResponse } from "@/types/api";
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
 
 export function useAccessToken() {
   return useSyncExternalStore(subscribeAccessToken, getAccessToken, getAccessToken);
@@ -53,5 +44,6 @@ export function useDashboard() {
   return useQuery({
     queryKey: ["dashboard"],
     queryFn: () => api.get<DashboardResponse>("/api/v1/dashboard"),
+    staleTime: 60_000,
   });
 }

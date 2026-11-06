@@ -40,16 +40,14 @@ export function FrameSpinner({ className }: { className?: string }) {
 export function SessionLoader() {
   return (
     <div
-      className="flex min-h-screen flex-col items-center justify-center px-4"
+      className="flex min-h-dvh flex-col items-center justify-center px-4"
       role="status"
       aria-live="polite"
       aria-busy="true"
     >
       <MarkImg mode="breathe" className="h-24 w-24" />
-      <p className="mt-5 text-xs font-semibold tracking-[0.22em] text-accent uppercase">
-        RIFAQ admin
-      </p>
-      <h1 className="mt-2 font-display text-3xl tracking-wide text-foreground">Loading dashboard</h1>
+      <p className="mt-5 eyebrow text-accent-text">RIFAQ admin</p>
+      <p className="mt-2 font-display text-3xl tracking-wide text-foreground">Signing you in…</p>
     </div>
   );
 }

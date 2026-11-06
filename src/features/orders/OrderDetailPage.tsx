@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FormSkeleton } from "@/components/loading";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
-import { Badge } from "@/components/ui/badge";
+import { EnumBadge, OrderStatusBadge, PaymentStatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -100,7 +100,7 @@ export function OrderDetailPage() {
   }
 
   if (orderQuery.isError) {
-    return <EmptyState title="Order not found" body="This order could not be loaded." />;
+    return <EmptyState variant="error" title="Order not found" body="This order could not be loaded." />;
   }
   if (orderQuery.isLoading || !order) {
     return <FormSkeleton fields={7} />;
@@ -108,8 +108,28 @@ export function OrderDetailPage() {
 
   const actions = ACTIONS[order.status] ?? [];
 
+  const statusSection =
+    canUpdateOrders && actions.length ? (
+      <div className="flex flex-wrap gap-2 pb-[env(safe-area-inset-bottom)]">
+        {actions.map((action) => (
+          <Button
+            key={action.status}
+            variant={action.destructive ? "destructive" : "outline"}
+            className="touch-target sm:min-h-0"
+            onClick={() => {
+              if (action.destructive) setPendingStatus(action.status);
+              else void handleStatus(action.status);
+            }}
+            pending={updateStatus.isPending}
+          >
+            {updateStatus.isPending ? "Updating" : action.label}
+          </Button>
+        ))}
+      </div>
+    ) : null;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-28 md:pb-0">
       <PageHeader
         eyebrow="Orders"
         title={order.order_number}
@@ -123,28 +143,14 @@ export function OrderDetailPage() {
         }
       />
       <div className="flex flex-wrap gap-2">
-        <Badge variant="secondary">{order.status}</Badge>
-        <Badge variant="outline">{order.payment_status}</Badge>
-        <Badge variant="outline">{order.payment_method}</Badge>
-        <Badge variant="outline">{order.fulfillment}</Badge>
+        <OrderStatusBadge status={order.status} />
+        <PaymentStatusBadge status={order.payment_status} />
+        <EnumBadge value={order.payment_method} />
+        <EnumBadge value={order.fulfillment} />
       </div>
-      {canUpdateOrders && actions.length ? (
-        <div className="flex flex-wrap gap-2">
-          {actions.map((action) => (
-            <Button
-              key={action.status}
-              variant={action.destructive ? "destructive" : "outline"}
-              onClick={() => {
-                if (action.destructive) setPendingStatus(action.status);
-                else void handleStatus(action.status);
-              }}
-              pending={updateStatus.isPending}
-            >
-              {updateStatus.isPending ? "Updating" : action.label}
-            </Button>
-          ))}
-        </div>
-      ) : null}
+
+      <div className="hidden md:block">{statusSection}</div>
+
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="border border-border bg-card p-5 text-sm">
           <h2 className="font-display text-2xl">Customer</h2>
@@ -171,6 +177,7 @@ export function OrderDetailPage() {
       </section>
       <div className="border border-border bg-card">
         <Table>
+          <caption className="sr-only">Line items</caption>
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">#</TableHead>
@@ -239,6 +246,13 @@ export function OrderDetailPage() {
           </form>
         ) : null}
       </section>
+
+      {canUpdateOrders && actions.length ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 p-4 backdrop-blur-sm md:hidden">
+          {statusSection}
+        </div>
+      ) : null}
+
       <ConfirmDialog
         open={Boolean(pendingStatus)}
         title="Change this order?"

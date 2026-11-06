@@ -13,7 +13,11 @@ export const DropdownMenuContent = React.forwardRef<
     <DropdownMenuPrimitive.Content
       ref={ref}
       sideOffset={sideOffset}
-      className={cn("z-50 min-w-40 border border-border bg-card p-1 text-sm shadow-md", className)}
+      className={cn(
+        "z-50 min-w-40 border border-border bg-card p-1 text-sm shadow-md",
+        "origin-top data-[state=open]:motion-safe:animate-[rifaq-dropdown-in_150ms_ease-out]",
+        className,
+      )}
       {...props}
     />
   </DropdownMenuPrimitive.Portal>

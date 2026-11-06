@@ -78,7 +78,7 @@ export function CollectionListPage() {
       {collections.isLoading ? (
         <TableSkeleton columns={["#", "Name", "Slug", "Status"]} />
       ) : collections.isError ? (
-        <EmptyState title="Could not load collections" body="Try again in a moment." />
+        <EmptyState variant="error" title="Could not load collections" body="Try again in a moment." />
       ) : !collections.data?.data.length ? (
         <EmptyState
           title="No collections yet"
