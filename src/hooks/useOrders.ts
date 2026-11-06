@@ -15,7 +15,8 @@ function searchParams(params: Record<string, string | number | undefined>): stri
 export function useOrders(params: { q?: string; status?: string; page?: number; limit?: number }) {
   return useQuery({
     queryKey: ["orders", params],
-    queryFn: () => api.getPage<OrderListItem>(`/api/v1/orders${searchParams(params)}`),
+    queryFn: ({ signal }) =>
+      api.getPage<OrderListItem>(`/api/v1/orders${searchParams(params)}`, { signal }),
     placeholderData: keepPreviousData,
   });
 }
@@ -23,7 +24,7 @@ export function useOrders(params: { q?: string; status?: string; page?: number; 
 export function useOrder(id: string | undefined) {
   return useQuery({
     queryKey: ["orders", id],
-    queryFn: () => api.get<OrderAdmin>(`/api/v1/orders/${id}`),
+    queryFn: ({ signal }) => api.get<OrderAdmin>(`/api/v1/orders/${id}`, { signal }),
     enabled: Boolean(id),
   });
 }
@@ -54,7 +55,8 @@ export function useAddOrderNote() {
 export function useCustomers(params: { q?: string; page?: number; limit?: number }) {
   return useQuery({
     queryKey: ["customers", params],
-    queryFn: () => api.getPage<CustomerListItem>(`/api/v1/customers${searchParams(params)}`),
+    queryFn: ({ signal }) =>
+      api.getPage<CustomerListItem>(`/api/v1/customers${searchParams(params)}`, { signal }),
     placeholderData: keepPreviousData,
   });
 }
@@ -62,7 +64,7 @@ export function useCustomers(params: { q?: string; page?: number; limit?: number
 export function useCustomer(id: string | undefined) {
   return useQuery({
     queryKey: ["customers", id],
-    queryFn: () => api.get<CustomerAdmin>(`/api/v1/customers/${id}`),
+    queryFn: ({ signal }) => api.get<CustomerAdmin>(`/api/v1/customers/${id}`, { signal }),
     enabled: Boolean(id),
   });
 }

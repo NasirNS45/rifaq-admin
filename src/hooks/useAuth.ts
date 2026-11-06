@@ -11,7 +11,7 @@ export function useCurrentUser() {
   const token = useAccessToken();
   return useQuery({
     queryKey: ["auth", "me"],
-    queryFn: () => api.get<AdminUser>("/api/v1/auth/me"),
+    queryFn: ({ signal }) => api.get<AdminUser>("/api/v1/auth/me", { signal }),
     enabled: Boolean(token),
     staleTime: 60_000,
   });
@@ -43,7 +43,7 @@ export function useLogout() {
 export function useDashboard() {
   return useQuery({
     queryKey: ["dashboard"],
-    queryFn: () => api.get<DashboardResponse>("/api/v1/dashboard"),
+    queryFn: ({ signal }) => api.get<DashboardResponse>("/api/v1/dashboard", { signal }),
     staleTime: 60_000,
   });
 }

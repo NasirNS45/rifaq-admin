@@ -22,7 +22,8 @@ function searchParams(params: Record<string, string | number | boolean | undefin
 export function useDiscounts(params: ListParams) {
   return useQuery({
     queryKey: ["discounts", params],
-    queryFn: () => api.getPage<Discount>(`/api/v1/discounts${searchParams(params)}`),
+    queryFn: ({ signal }) =>
+      api.getPage<Discount>(`/api/v1/discounts${searchParams(params)}`, { signal }),
     placeholderData: keepPreviousData,
   });
 }
@@ -30,7 +31,7 @@ export function useDiscounts(params: ListParams) {
 export function useDiscount(id: string | undefined) {
   return useQuery({
     queryKey: ["discounts", id],
-    queryFn: () => api.get<Discount>(`/api/v1/discounts/${id}`),
+    queryFn: ({ signal }) => api.get<Discount>(`/api/v1/discounts/${id}`, { signal }),
     enabled: Boolean(id),
   });
 }

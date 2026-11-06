@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import { RouteAnnouncer, RouteFocusMain } from "@/components/RouteAnnouncer";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -99,15 +99,20 @@ const UserListPage = lazy(() =>
 function SessionExpiredBridge() {
   const navigate = useNavigate();
   const location = useLocation();
+  const pathnameRef = useRef(location.pathname);
+
+  useEffect(() => {
+    pathnameRef.current = location.pathname;
+  }, [location.pathname]);
 
   useEffect(() => {
     return subscribeSessionExpired(() => {
       queryClient.clear();
-      if (location.pathname !== "/login") {
+      if (pathnameRef.current !== "/login") {
         navigate("/login", { replace: true });
       }
     });
-  }, [navigate, location.pathname]);
+  }, [navigate]);
 
   return null;
 }

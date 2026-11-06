@@ -15,7 +15,6 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id: string) {
-            if (id.includes("node_modules/recharts")) return "recharts";
             if (
               id.includes("node_modules/react-hook-form") ||
               id.includes("node_modules/zod") ||

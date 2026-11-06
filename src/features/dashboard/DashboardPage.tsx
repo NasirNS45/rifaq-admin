@@ -1,19 +1,7 @@
 import { Link } from "react-router";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChartSkeleton, DashboardTableSkeleton } from "@/components/loading";
+import { DashboardTableSkeleton } from "@/components/loading";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import {
   Table,
@@ -27,11 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useDashboard } from "@/hooks/useAuth";
 import { formatPkr } from "@/lib/utils";
 import type { OrderStatus } from "@/types/api";
-
-const CHART_GRID = "var(--color-chart-grid)";
-const CHART_PRIMARY = "var(--color-chart-1)";
-const CHART_ACCENT = "var(--color-chart-accent)";
-const CHART_NEGATIVE = "var(--color-chart-negative)";
+import { DashboardChartsLazy } from "./DashboardCharts";
 
 function Kpi({
   label,
@@ -60,7 +44,10 @@ function Kpi({
   );
   if (!to) return inner;
   return (
-    <Link to={to} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+    <Link
+      to={to}
+      className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    >
       {inner}
     </Link>
   );
@@ -69,13 +56,6 @@ function Kpi({
 function SectionTitle({ children }: { children: string }) {
   return <h2 className="font-display text-2xl tracking-wide text-foreground">{children}</h2>;
 }
-
-const tooltipContentStyle = {
-  backgroundColor: "var(--color-card)",
-  border: "1px solid var(--color-border)",
-  borderRadius: 0,
-  fontSize: 12,
-};
 
 export function DashboardPage() {
   const { data, isLoading, isError, refetch } = useDashboard();
@@ -134,9 +114,24 @@ export function DashboardPage() {
         <SectionTitle>Fulfilment</SectionTitle>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi label="Pending" value={stats?.pending_orders ?? 0} loading={isLoading} to="/orders?status=pending" />
-          <Kpi label="Confirmed" value={stats?.confirmed_orders ?? 0} loading={isLoading} to="/orders?status=confirmed" />
-          <Kpi label="Delivered" value={stats?.delivered_orders ?? 0} loading={isLoading} to="/orders?status=delivered" />
-          <Kpi label="Cancelled" value={stats?.cancelled_orders ?? 0} loading={isLoading} to="/orders?status=cancelled" />
+          <Kpi
+            label="Confirmed"
+            value={stats?.confirmed_orders ?? 0}
+            loading={isLoading}
+            to="/orders?status=confirmed"
+          />
+          <Kpi
+            label="Delivered"
+            value={stats?.delivered_orders ?? 0}
+            loading={isLoading}
+            to="/orders?status=delivered"
+          />
+          <Kpi
+            label="Cancelled"
+            value={stats?.cancelled_orders ?? 0}
+            loading={isLoading}
+            to="/orders?status=cancelled"
+          />
         </div>
       </section>
 
@@ -150,113 +145,7 @@ export function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Orders over time</CardTitle>
-          </CardHeader>
-          <CardContent className="h-64">
-            {isLoading ? (
-              <ChartSkeleton />
-            ) : data?.orders_over_time.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.orders_over_time}>
-                  <CartesianGrid stroke={CHART_GRID} />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={tooltipContentStyle} />
-                  <Line type="monotone" dataKey="value" stroke={CHART_PRIMARY} strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No orders yet. Prepaid checkouts will appear here after Swich payment.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue over time</CardTitle>
-          </CardHeader>
-          <CardContent className="h-64">
-            {isLoading ? (
-              <ChartSkeleton />
-            ) : data?.revenue_over_time.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.revenue_over_time}>
-                  <CartesianGrid stroke={CHART_GRID} />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={tooltipContentStyle} />
-                  <Line type="monotone" dataKey="value" stroke={CHART_ACCENT} strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Revenue is counted from confirmed and delivered orders in PKR. Nothing has been confirmed yet.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Top products</CardTitle>
-          </CardHeader>
-          <CardContent className="h-64">
-            {isLoading ? (
-              <ChartSkeleton />
-            ) : data?.top_products.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.top_products}>
-                  <CartesianGrid stroke={CHART_GRID} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={0} height={48} textAnchor="end" />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={tooltipContentStyle} />
-                  <Bar dataKey="quantity_sold" fill={CHART_PRIMARY} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Top pieces will appear once paid orders start moving through fulfillment.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Orders by status</CardTitle>
-          </CardHeader>
-          <CardContent className="h-64">
-            {isLoading ? (
-              <ChartSkeleton />
-            ) : data?.orders_by_status.some((row) => row.count > 0) ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.orders_by_status}>
-                  <CartesianGrid stroke={CHART_GRID} />
-                  <XAxis dataKey="status" tick={{ fontSize: 11 }} interval={0} angle={0} height={56} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={tooltipContentStyle} />
-                  <Bar dataKey="count">
-                    {data.orders_by_status.map((entry) => (
-                      <Cell
-                        key={entry.status}
-                        fill={
-                          entry.status === "CANCELLED" || entry.status === "RETURNED"
-                            ? CHART_NEGATIVE
-                            : CHART_PRIMARY
-                        }
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-muted-foreground">No order statuses to chart yet.</p>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+      {data ? <DashboardChartsLazy data={data} /> : null}
 
       <section className="grid gap-4 xl:grid-cols-2">
         <Card>

@@ -32,7 +32,8 @@ function searchParams(params: Record<string, string | number | boolean | undefin
 export function useAdminUsers(params: ListParams) {
   return useQuery({
     queryKey: ["users", params],
-    queryFn: () => api.getPage<AdminAccount>(`/api/v1/users${searchParams(params)}`),
+    queryFn: ({ signal }) =>
+      api.getPage<AdminAccount>(`/api/v1/users${searchParams(params)}`, { signal }),
     placeholderData: keepPreviousData,
   });
 }
@@ -40,7 +41,7 @@ export function useAdminUsers(params: ListParams) {
 export function useAdminUser(id: string | undefined) {
   return useQuery({
     queryKey: ["users", id],
-    queryFn: () => api.get<AdminAccount>(`/api/v1/users/${id}`),
+    queryFn: ({ signal }) => api.get<AdminAccount>(`/api/v1/users/${id}`, { signal }),
     enabled: Boolean(id),
   });
 }
@@ -62,7 +63,8 @@ export function useSaveAdminUser() {
 export function useAuditLogs(params: AuditParams) {
   return useQuery({
     queryKey: ["audit", params],
-    queryFn: () => api.getPage<AuditLog>(`/api/v1/audit-logs${searchParams(params)}`),
+    queryFn: ({ signal }) =>
+      api.getPage<AuditLog>(`/api/v1/audit-logs${searchParams(params)}`, { signal }),
     placeholderData: keepPreviousData,
   });
 }

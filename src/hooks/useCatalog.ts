@@ -45,7 +45,8 @@ const STATIC_LIST_STALE_MS = 5 * 60_000;
 export function useBrands(params: ListParams) {
   return useQuery({
     queryKey: ["brands", params],
-    queryFn: () => api.getPage<Brand>(`/api/v1/brands${searchParams(params)}`),
+    queryFn: ({ signal }) =>
+      api.getPage<Brand>(`/api/v1/brands${searchParams(params)}`, { signal }),
     placeholderData: keepPreviousData,
     staleTime: STATIC_LIST_STALE_MS,
   });
@@ -54,7 +55,7 @@ export function useBrands(params: ListParams) {
 export function useBrand(id: string | undefined) {
   return useQuery({
     queryKey: ["brands", id],
-    queryFn: () => api.get<Brand>(`/api/v1/brands/${id}`),
+    queryFn: ({ signal }) => api.get<Brand>(`/api/v1/brands/${id}`, { signal }),
     enabled: Boolean(id),
   });
 }
@@ -81,8 +82,8 @@ export function useDeleteBrand() {
 export function useCategories(params: ListParams) {
   return useQuery({
     queryKey: ["categories", params],
-    queryFn: () =>
-      api.getPage<Category>(`/api/v1/categories${searchParams(params)}`),
+    queryFn: ({ signal }) =>
+      api.getPage<Category>(`/api/v1/categories${searchParams(params)}`, { signal }),
     placeholderData: keepPreviousData,
     staleTime: STATIC_LIST_STALE_MS,
   });
@@ -91,7 +92,7 @@ export function useCategories(params: ListParams) {
 export function useCategory(id: string | undefined) {
   return useQuery({
     queryKey: ["categories", id],
-    queryFn: () => api.get<Category>(`/api/v1/categories/${id}`),
+    queryFn: ({ signal }) => api.get<Category>(`/api/v1/categories/${id}`, { signal }),
     enabled: Boolean(id),
   });
 }
@@ -118,8 +119,8 @@ export function useDeleteCategory() {
 export function useCollections(params: ListParams) {
   return useQuery({
     queryKey: ["collections", params],
-    queryFn: () =>
-      api.getPage<Collection>(`/api/v1/collections${searchParams(params)}`),
+    queryFn: ({ signal }) =>
+      api.getPage<Collection>(`/api/v1/collections${searchParams(params)}`, { signal }),
     placeholderData: keepPreviousData,
     staleTime: STATIC_LIST_STALE_MS,
   });
@@ -128,7 +129,7 @@ export function useCollections(params: ListParams) {
 export function useCollection(id: string | undefined) {
   return useQuery({
     queryKey: ["collections", id],
-    queryFn: () => api.get<Collection>(`/api/v1/collections/${id}`),
+    queryFn: ({ signal }) => api.get<Collection>(`/api/v1/collections/${id}`, { signal }),
     enabled: Boolean(id),
   });
 }
@@ -162,8 +163,8 @@ export type ProductListParams = ListParams & {
 export function useProducts(params: ProductListParams) {
   return useQuery({
     queryKey: ["products", params],
-    queryFn: () =>
-      api.getPage<ProductListItem>(`/api/v1/products${searchParams(params)}`),
+    queryFn: ({ signal }) =>
+      api.getPage<ProductListItem>(`/api/v1/products${searchParams(params)}`, { signal }),
     placeholderData: keepPreviousData,
   });
 }
@@ -171,7 +172,7 @@ export function useProducts(params: ProductListParams) {
 export function useProduct(id: string | undefined) {
   return useQuery({
     queryKey: ["products", id],
-    queryFn: () => api.get<Product>(`/api/v1/products/${id}`),
+    queryFn: ({ signal }) => api.get<Product>(`/api/v1/products/${id}`, { signal }),
     enabled: Boolean(id),
   });
 }
@@ -245,8 +246,8 @@ export function useDeleteProduct() {
 export function useStock(params: ListParams & { availability?: Availability }) {
   return useQuery({
     queryKey: ["inventory", "stock", params],
-    queryFn: () =>
-      api.getPage<StockRow>(`/api/v1/inventory/stock${searchParams(params)}`),
+    queryFn: ({ signal }) =>
+      api.getPage<StockRow>(`/api/v1/inventory/stock${searchParams(params)}`, { signal }),
     placeholderData: keepPreviousData,
   });
 }
@@ -259,10 +260,8 @@ export function useAdjustments(
 ) {
   return useQuery({
     queryKey: ["inventory", "adjustments", params],
-    queryFn: () =>
-      api.getPage<Adjustment>(
-        `/api/v1/inventory/adjustments${searchParams(params)}`,
-      ),
+    queryFn: ({ signal }) =>
+      api.getPage<Adjustment>(`/api/v1/inventory/adjustments${searchParams(params)}`, { signal }),
     placeholderData: keepPreviousData,
   });
 }

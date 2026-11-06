@@ -33,6 +33,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { useCurrentUser, useLogout } from "@/hooks/useAuth";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { preloadDashboardCharts } from "@/features/dashboard/preloadDashboardCharts";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
 type NavGroup = { label: string; items: NavItem[] };
@@ -96,6 +97,8 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
               key={entry.to}
               to={entry.to}
               end={entry.to === "/"}
+              onMouseEnter={entry.to === "/" ? preloadDashboardCharts : undefined}
+              onFocus={entry.to === "/" ? preloadDashboardCharts : undefined}
               onClick={onNavigate}
               className={({ isActive }) =>
                 cn(

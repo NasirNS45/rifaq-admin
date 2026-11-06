@@ -82,11 +82,19 @@ async function refreshAccess(): Promise<boolean> {
   return true;
 }
 
+export type ApiRequestOptions = {
+  /** Forwarded to fetch; TanStack Query passes this when the observer is cancelled or remounted. */
+  signal?: AbortSignal;
+};
+
 async function requestPayload<T>(
   path: string,
   init: RequestInit = {},
   retry = true,
 ): Promise<Envelope<T>> {
+  if (init.signal?.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
   const headers = new Headers(init.headers);
   const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
   if (!headers.has("Content-Type") && init.body && !isFormData) {
@@ -100,7 +108,7 @@ async function requestPayload<T>(
     credentials: "include",
   });
 
-  if (response.status === 401 && retry && path !== "/api/v1/auth/login") {
+  if (response.status === 401 && retry && path !== "/api/v1/auth/login" && !init.signal?.aborted) {
     refreshPromise ??= refreshAccess().finally(() => {
       refreshPromise = null;
     });
@@ -125,14 +133,20 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return payload.data;
 }
 
-function jsonInit(method: string, body?: unknown): RequestInit {
-  return { method, body: body === undefined ? undefined : JSON.stringify(body) };
+function jsonInit(method: string, body?: unknown, signal?: AbortSignal): RequestInit {
+  return {
+    method,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    ...(signal ? { signal } : {}),
+  };
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path),
-  getPage: async <T>(path: string): Promise<Paginated<T>> => {
-    const payload = await requestPayload<T[]>(path);
+  get: <T>(path: string, options?: ApiRequestOptions) =>
+    request<T>(path, options?.signal ? { signal: options.signal } : {}),
+  getPage: async <T>(path: string, options?: ApiRequestOptions): Promise<Paginated<T>> => {
+    const init = options?.signal ? { signal: options.signal } : {};
+    const payload = await requestPayload<T[]>(path, init);
     const page = payload as Envelope<T[]> & Partial<Paginated<T>>;
     return {
       data: page.data,
@@ -143,11 +157,16 @@ export const api = {
       status: page.status,
     };
   },
-  post: <T>(path: string, body?: unknown) => request<T>(path, jsonInit("POST", body)),
-  put: <T>(path: string, body?: unknown) => request<T>(path, jsonInit("PUT", body)),
-  patch: <T>(path: string, body?: unknown) => request<T>(path, jsonInit("PATCH", body)),
-  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
-  upload: <T>(path: string, body: FormData) => request<T>(path, { method: "POST", body }),
+  post: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
+    request<T>(path, jsonInit("POST", body, options?.signal)),
+  put: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
+    request<T>(path, jsonInit("PUT", body, options?.signal)),
+  patch: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
+    request<T>(path, jsonInit("PATCH", body, options?.signal)),
+  delete: <T>(path: string, options?: ApiRequestOptions) =>
+    request<T>(path, { method: "DELETE", ...(options?.signal ? { signal: options.signal } : {}) }),
+  upload: <T>(path: string, body: FormData, options?: ApiRequestOptions) =>
+    request<T>(path, { method: "POST", body, ...(options?.signal ? { signal: options.signal } : {}) }),
 };
 
 export function mediaPreviewUrl(path: string): string {

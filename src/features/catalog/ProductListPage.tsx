@@ -308,15 +308,18 @@ export function ProductListPage() {
                   const list = { page: 1, limit: 100, is_active: true };
                   void queryClient.prefetchQuery({
                     queryKey: ["brands", list],
-                    queryFn: () => api.getPage<Brand>(`/api/v1/brands?page=1&limit=100&is_active=true`),
+                    queryFn: ({ signal }) =>
+                      api.getPage<Brand>(`/api/v1/brands?page=1&limit=100&is_active=true`, { signal }),
                   });
                   void queryClient.prefetchQuery({
                     queryKey: ["categories", list],
-                    queryFn: () => api.getPage<Category>(`/api/v1/categories?page=1&limit=100&is_active=true`),
+                    queryFn: ({ signal }) =>
+                      api.getPage<Category>(`/api/v1/categories?page=1&limit=100&is_active=true`, { signal }),
                   });
                   void queryClient.prefetchQuery({
                     queryKey: ["collections", { page: 1, limit: 100 }],
-                    queryFn: () => api.getPage<Collection>(`/api/v1/collections?page=1&limit=100`),
+                    queryFn: ({ signal }) =>
+                      api.getPage<Collection>(`/api/v1/collections?page=1&limit=100`, { signal }),
                   });
                 }}
               >

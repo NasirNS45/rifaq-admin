@@ -122,24 +122,6 @@
   }
 }
 
-@keyframes rifaq-mark-trace {
-  from {
-    stroke-dashoffset: 220;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes rifaq-mark-fill {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 @keyframes rifaq-stitch {
   from {
     background-position: 0 0;
@@ -168,17 +150,6 @@
   to {
     background-position: -100% 0;
   }
-}
-
-@utility mark-trace {
-  stroke-dasharray: 220;
-  stroke-dashoffset: 220;
-  animation: rifaq-mark-trace 1.4s ease-out forwards;
-}
-
-@utility mark-fill {
-  opacity: 0;
-  animation: rifaq-mark-fill 0.6s ease-out 0.9s forwards;
 }
 
 @utility stitch-run {
@@ -210,21 +181,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mark-trace,
-  .mark-fill,
   .stitch-run,
   .frame-breathe,
   .fabric-shimmer,
   .fade-up {
     animation: none;
-  }
-
-  .mark-trace {
-    stroke-dashoffset: 0;
-  }
-
-  .mark-fill {
-    opacity: 1;
   }
 }
 

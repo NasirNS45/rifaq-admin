@@ -44,8 +44,9 @@ export function DebouncedSearchInput({
   }, [value]);
 
   useEffect(() => {
+    if (debounced === value) return;
     onDebouncedChangeRef.current(debounced);
-  }, [debounced]);
+  }, [debounced, value]);
 
   return (
     <Input
