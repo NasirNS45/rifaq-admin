@@ -27,13 +27,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useBulkMutation } from "@/hooks/useBulkApi";
+import { bulkDialogOnOpenChange, performBulkAction, useBulkMutation } from "@/hooks/useBulkApi";
 import { useBrands, useCategories, useDeleteProduct, useProducts } from "@/hooks/useCatalog";
 import { useListFilters } from "@/hooks/useListFilters";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { ApiError, api, mediaPreviewUrl } from "@/lib/api";
-import { toastBulkResult } from "@/lib/bulkToast";
 import { formatPkr } from "@/lib/utils";
 import type { Availability, Brand, Category, Collection, ProductListItem, ProductStatus } from "@/types/api";
 
@@ -152,15 +151,10 @@ export function ProductListPage() {
   );
   const canSelect = canDelete || canUpdate;
 
-  async function runBulk(path: string, body: unknown) {
-    try {
-      const { result, message } = await bulk.mutateAsync({ path, body });
-      toastBulkResult(message, result);
-      selection.clear();
-    } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Bulk action failed.";
-      toast.error(message);
-    }
+  function runBulk(path: string, body: unknown) {
+    return performBulkAction(bulk.mutateAsync, path, body, {
+      onSuccess: () => selection.clear(),
+    });
   }
 
   async function handleDelete() {
@@ -482,10 +476,13 @@ export function ProductListPage() {
         title="Delete selected pieces?"
         body="Pieces on orders will be skipped. Archive those instead."
         pending={bulk.isPending}
-        onOpenChange={setBulkDeleteOpen}
+        onOpenChange={bulkDialogOnOpenChange(bulk.isPending, setBulkDeleteOpen)}
         onConfirm={() => {
-          setBulkDeleteOpen(false);
-          void runBulk("/api/v1/products/bulk-delete", { ids: selection.selectedIds });
+          void (async () => {
+            if (await runBulk("/api/v1/products/bulk-delete", { ids: selection.selectedIds })) {
+              setBulkDeleteOpen(false);
+            }
+          })();
         }}
       />
     </div>

@@ -25,10 +25,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useBulkMutation } from "@/hooks/useBulkApi";
+import { bulkDialogOnOpenChange, performBulkAction, useBulkMutation } from "@/hooks/useBulkApi";
 import { useDeleteDiscount, useDiscounts } from "@/hooks/useDiscounts";
 import { useRowSelection } from "@/hooks/useRowSelection";
-import { toastBulkResult } from "@/lib/bulkToast";
 import { useListFilters } from "@/hooks/useListFilters";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ApiError } from "@/lib/api";
@@ -88,15 +87,10 @@ export function DiscountListPage() {
   const selection = useRowSelection(pageIds, `${page}-${values.q}-${values.is_active}`);
   const canSelect = canDelete || canUpdate;
 
-  async function runBulk(path: string, body: unknown) {
-    try {
-      const { result, message } = await bulk.mutateAsync({ path, body });
-      toastBulkResult(message, result);
-      selection.clear();
-    } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Bulk action failed.";
-      toast.error(message);
-    }
+  function runBulk(path: string, body: unknown) {
+    return performBulkAction(bulk.mutateAsync, path, body, {
+      onSuccess: () => selection.clear(),
+    });
   }
 
   async function handleDelete() {
@@ -363,10 +357,13 @@ export function DiscountListPage() {
         title="Delete selected campaigns?"
         body="Live sale prices will stop applying for removed campaigns."
         pending={bulk.isPending}
-        onOpenChange={setBulkDeleteOpen}
+        onOpenChange={bulkDialogOnOpenChange(bulk.isPending, setBulkDeleteOpen)}
         onConfirm={() => {
-          setBulkDeleteOpen(false);
-          void runBulk("/api/v1/discounts/bulk-delete", { ids: selection.selectedIds });
+          void (async () => {
+            if (await runBulk("/api/v1/discounts/bulk-delete", { ids: selection.selectedIds })) {
+              setBulkDeleteOpen(false);
+            }
+          })();
         }}
       />
     </div>

@@ -28,7 +28,13 @@ export function ConfirmDialog({
   }, [open]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (pending && !next) return;
+        onOpenChange(next);
+      }}
+    >
       <DialogContent>
         <DialogTitle className="font-display text-2xl">{title}</DialogTitle>
         <DialogDescription className="mt-2 text-sm text-muted-foreground">{body}</DialogDescription>

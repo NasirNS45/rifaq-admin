@@ -18,12 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useBulkMutation } from "@/hooks/useBulkApi";
+import { bulkDialogOnOpenChange, performBulkAction, useBulkMutation } from "@/hooks/useBulkApi";
 import { useBrands, useDeleteBrand } from "@/hooks/useCatalog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { ApiError } from "@/lib/api";
-import { toastBulkResult } from "@/lib/bulkToast";
 
 export function BrandListPage() {
   const { canCreate, canUpdate, canDelete } = usePermissions();
@@ -38,15 +37,10 @@ export function BrandListPage() {
   const pageIds = useMemo(() => brands.data?.data.map((row) => row.id) ?? [], [brands.data?.data]);
   const selection = useRowSelection(pageIds, `${page}-${q}-${String(isActive)}`);
 
-  async function runBulk(path: string, body: unknown) {
-    try {
-      const { result, message } = await bulk.mutateAsync({ path, body });
-      toastBulkResult(message, result);
-      selection.clear();
-    } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Bulk action failed.";
-      toast.error(message);
-    }
+  function runBulk(path: string, body: unknown) {
+    return performBulkAction(bulk.mutateAsync, path, body, {
+      onSuccess: () => selection.clear(),
+    });
   }
 
   async function handleDelete() {
@@ -231,10 +225,13 @@ export function BrandListPage() {
         title="Delete selected brands?"
         body="Only empty brands can be removed. Items still in use will be skipped."
         pending={bulk.isPending}
-        onOpenChange={setBulkDeleteOpen}
+        onOpenChange={bulkDialogOnOpenChange(bulk.isPending, setBulkDeleteOpen)}
         onConfirm={() => {
-          setBulkDeleteOpen(false);
-          void runBulk("/api/v1/brands/bulk-delete", { ids: selection.selectedIds });
+          void (async () => {
+            if (await runBulk("/api/v1/brands/bulk-delete", { ids: selection.selectedIds })) {
+              setBulkDeleteOpen(false);
+            }
+          })();
         }}
       />
     </div>

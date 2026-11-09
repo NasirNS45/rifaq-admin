@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
-import { toast } from "sonner";
 import { BulkActionBar } from "@/components/BulkActionBar";
 import { ListRowCheckbox, ListSelectAllCheckbox } from "@/components/ListSelectionCheckbox";
 import { TableSkeleton } from "@/components/loading";
@@ -20,12 +19,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useBulkMutation } from "@/hooks/useBulkApi";
+import { bulkDialogOnOpenChange, performBulkAction, useBulkMutation } from "@/hooks/useBulkApi";
 import { useStock } from "@/hooks/useCatalog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRowSelection } from "@/hooks/useRowSelection";
-import { ApiError } from "@/lib/api";
-import { toastBulkResult } from "@/lib/bulkToast";
 import type { AdjustmentType, Availability } from "@/types/api";
 
 const AVAILABILITY_LABEL: Record<Availability, string> = {
@@ -57,24 +54,19 @@ export function StockPage() {
 
   async function submitBulkAdjust() {
     if (selection.selectedCount < 1) return;
-    try {
-      const { result, message } = await bulk.mutateAsync({
-        path: "/api/v1/inventory/adjustments/bulk",
-        body: {
-          product_ids: selection.selectedIds,
-          adjustment_type: adjustmentType,
-          quantity,
-          reason: reason.trim() || null,
-          note: note.trim() || null,
-        },
-      });
-      toastBulkResult(message, result);
-      selection.clear();
-      setBulkOpen(false);
-    } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Bulk adjustment failed.";
-      toast.error(message);
-    }
+    const ok = await performBulkAction(
+      bulk.mutateAsync,
+      "/api/v1/inventory/adjustments/bulk",
+      {
+        product_ids: selection.selectedIds,
+        adjustment_type: adjustmentType,
+        quantity,
+        reason: reason.trim() || null,
+        note: note.trim() || null,
+      },
+      { onSuccess: () => selection.clear() },
+    );
+    if (ok) setBulkOpen(false);
   }
 
   return (
@@ -202,7 +194,7 @@ export function StockPage() {
       )}
       <PaginationBar page={page} limit={20} total={stock.data?.total ?? 0} onPage={setPage} />
 
-      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+      <Dialog open={bulkOpen} onOpenChange={bulkDialogOnOpenChange(bulk.isPending, setBulkOpen)}>
         <DialogContent>
           <DialogTitle className="font-display text-2xl">Bulk stock adjustment</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
@@ -248,7 +240,7 @@ export function StockPage() {
               <Textarea id="bulk_note" value={note} onChange={(event) => setNote(event.target.value)} />
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setBulkOpen(false)}>
+              <Button type="button" variant="outline" disabled={bulk.isPending} onClick={() => setBulkOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" pending={bulk.isPending}>

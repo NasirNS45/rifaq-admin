@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
-import { toast } from "sonner";
 import { BulkActionBar } from "@/components/BulkActionBar";
 import { DebouncedSearchInput } from "@/components/ListFilters";
 import { ListRowCheckbox, ListSelectAllCheckbox } from "@/components/ListSelectionCheckbox";
@@ -17,13 +16,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useBulkMutation } from "@/hooks/useBulkApi";
+import { performBulkAction, useBulkMutation } from "@/hooks/useBulkApi";
 import { useListFilters } from "@/hooks/useListFilters";
 import { useOrders } from "@/hooks/useOrders";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRowSelection } from "@/hooks/useRowSelection";
-import { ApiError } from "@/lib/api";
-import { toastBulkResult } from "@/lib/bulkToast";
 import { cn, formatPkr } from "@/lib/utils";
 import type { OrderStatus } from "@/types/api";
 
@@ -99,17 +96,12 @@ export function OrderListPage() {
   const selection = useRowSelection(pageIds, `${page}-${values.q}-${group}`);
 
   async function applyBulkStatus(status: OrderStatus) {
-    try {
-      const { result, message } = await bulk.mutateAsync({
-        path: "/api/v1/orders/bulk-update",
-        body: { ids: selection.selectedIds, status },
-      });
-      toastBulkResult(message, result);
-      selection.clear();
-    } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Bulk update failed.";
-      toast.error(message);
-    }
+    await performBulkAction(
+      bulk.mutateAsync,
+      "/api/v1/orders/bulk-update",
+      { ids: selection.selectedIds, status },
+      { onSuccess: () => selection.clear() },
+    );
   }
 
   function setGroup(next: OrderGroup) {

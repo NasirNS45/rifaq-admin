@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
-import { toast } from "sonner";
 import { BulkActionBar } from "@/components/BulkActionBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ListRowCheckbox, ListSelectAllCheckbox } from "@/components/ListSelectionCheckbox";
@@ -18,12 +17,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useBulkMutation } from "@/hooks/useBulkApi";
+import { bulkDialogOnOpenChange, performBulkAction, useBulkMutation } from "@/hooks/useBulkApi";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRowSelection } from "@/hooks/useRowSelection";
 import { useAdminUsers } from "@/hooks/useUsers";
-import { ApiError } from "@/lib/api";
-import { toastBulkResult } from "@/lib/bulkToast";
 import type { AdminRole } from "@/types/api";
 
 const ROLE_LABEL: Record<AdminRole, string> = {
@@ -52,18 +49,13 @@ export function UserListPage() {
   const selection = useRowSelection(pageIds, `${page}-${q}-${role}-${String(isActive)}`);
 
   async function runBulkDeactivate() {
-    try {
-      const { result, message } = await bulk.mutateAsync({
-        path: "/api/v1/users/bulk-deactivate",
-        body: { ids: selection.selectedIds },
-      });
-      toastBulkResult(message, result);
-      selection.clear();
-      setBulkOpen(false);
-    } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Bulk deactivate failed.";
-      toast.error(message);
-    }
+    const ok = await performBulkAction(
+      bulk.mutateAsync,
+      "/api/v1/users/bulk-deactivate",
+      { ids: selection.selectedIds },
+      { onSuccess: () => selection.clear() },
+    );
+    if (ok) setBulkOpen(false);
   }
 
   return (
@@ -201,7 +193,7 @@ export function UserListPage() {
         title="Deactivate selected users?"
         body="You cannot deactivate yourself or the last active super admin. Those accounts will be skipped."
         pending={bulk.isPending}
-        onOpenChange={setBulkOpen}
+        onOpenChange={bulkDialogOnOpenChange(bulk.isPending, setBulkOpen)}
         onConfirm={() => void runBulkDeactivate()}
       />
     </div>
