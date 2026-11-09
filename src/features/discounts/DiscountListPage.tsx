@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ListRowCheckbox, ListSelectAllCheckbox } from "@/components/ListSelectionCheckbox";
 import { DebouncedSearchInput, ListFiltersChrome } from "@/components/ListFilters";
 import { StackedOnMobile } from "@/components/StackedOnMobile";
 import { TableSkeleton } from "@/components/loading";
@@ -23,7 +25,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useBulkMutation } from "@/hooks/useBulkApi";
 import { useDeleteDiscount, useDiscounts } from "@/hooks/useDiscounts";
+import { useRowSelection } from "@/hooks/useRowSelection";
+import { toastBulkResult } from "@/lib/bulkToast";
 import { useListFilters } from "@/hooks/useListFilters";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ApiError } from "@/lib/api";
@@ -67,6 +72,8 @@ export function DiscountListPage() {
   const defaults = useMemo(() => ({ q: "", is_active: "" }), []);
   const { values, set, clear, page, setPage } = useListFilters(defaults);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const bulk = useBulkMutation([["discounts"]]);
 
   const discounts = useDiscounts({
     q: values.q || undefined,
@@ -77,6 +84,20 @@ export function DiscountListPage() {
   const remove = useDeleteDiscount();
 
   const hasFilters = Boolean(values.q || values.is_active);
+  const pageIds = useMemo(() => discounts.data?.data.map((row) => row.id) ?? [], [discounts.data?.data]);
+  const selection = useRowSelection(pageIds, `${page}-${values.q}-${values.is_active}`);
+  const canSelect = canDelete || canUpdate;
+
+  async function runBulk(path: string, body: unknown) {
+    try {
+      const { result, message } = await bulk.mutateAsync({ path, body });
+      toastBulkResult(message, result);
+      selection.clear();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : "Bulk action failed.";
+      toast.error(message);
+    }
+  }
 
   async function handleDelete() {
     if (!pendingId) return;
@@ -110,6 +131,15 @@ export function DiscountListPage() {
           <caption className="sr-only">Discount campaigns</caption>
           <TableHeader>
             <TableRow>
+              {canSelect ? (
+                <TableHead className="w-10">
+                  <ListSelectAllCheckbox
+                    allSelected={selection.allSelected}
+                    someSelected={selection.someSelected}
+                    onToggle={selection.toggleAll}
+                  />
+                </TableHead>
+              ) : null}
               <TableHead className="w-12">#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
@@ -123,6 +153,15 @@ export function DiscountListPage() {
           <TableBody>
             {discounts.data.data.map((discount, index) => (
               <TableRow key={discount.id}>
+                {canSelect ? (
+                  <TableCell>
+                    <ListRowCheckbox
+                      checked={selection.isSelected(discount.id)}
+                      onToggle={() => selection.toggle(discount.id)}
+                      label={`Select ${discount.name}`}
+                    />
+                  </TableCell>
+                ) : null}
                 <TableCell>{rowNumber(page, LIMIT, index)}</TableCell>
                 <TableCell>{discount.name}</TableCell>
                 <TableCell>{discount.discount_type === "PERCENTAGE" ? "Percentage" : "Fixed amount"}</TableCell>
@@ -171,6 +210,13 @@ export function DiscountListPage() {
       <>
         {discounts.data.data.map((discount, index) => (
           <div key={discount.id} className="space-y-2 border border-border bg-card p-4">
+            {canSelect ? (
+              <ListRowCheckbox
+                checked={selection.isSelected(discount.id)}
+                onToggle={() => selection.toggle(discount.id)}
+                label={`Select ${discount.name}`}
+              />
+            ) : null}
             <div className="flex justify-between gap-2">
               <p className="font-medium">{discount.name}</p>
               <Badge variant={discount.is_active ? "success" : "outline"}>
@@ -256,7 +302,48 @@ export function DiscountListPage() {
           action={canCreate ? { to: "/discounts/new", label: "Add campaign" } : undefined}
         />
       ) : (
-        <StackedOnMobile table={tableView} stack={stackView} />
+        <>
+          <BulkActionBar count={selection.selectedCount} onClear={selection.clear}>
+            {canUpdate ? (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  pending={bulk.isPending}
+                  onClick={() =>
+                    void runBulk("/api/v1/discounts/bulk-update", {
+                      ids: selection.selectedIds,
+                      is_active: true,
+                    })
+                  }
+                >
+                  Turn on
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  pending={bulk.isPending}
+                  onClick={() =>
+                    void runBulk("/api/v1/discounts/bulk-update", {
+                      ids: selection.selectedIds,
+                      is_active: false,
+                    })
+                  }
+                >
+                  Turn off
+                </Button>
+              </>
+            ) : null}
+            {canDelete ? (
+              <Button type="button" size="sm" variant="destructive" onClick={() => setBulkDeleteOpen(true)}>
+                Delete
+              </Button>
+            ) : null}
+          </BulkActionBar>
+          <StackedOnMobile table={tableView} stack={stackView} />
+        </>
       )}
 
       <PaginationBar page={page} limit={LIMIT} total={discounts.data?.total ?? 0} onPage={setPage} />
@@ -270,6 +357,17 @@ export function DiscountListPage() {
           if (!open) setPendingId(null);
         }}
         onConfirm={() => void handleDelete()}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        title="Delete selected campaigns?"
+        body="Live sale prices will stop applying for removed campaigns."
+        pending={bulk.isPending}
+        onOpenChange={setBulkDeleteOpen}
+        onConfirm={() => {
+          setBulkDeleteOpen(false);
+          void runBulk("/api/v1/discounts/bulk-delete", { ids: selection.selectedIds });
+        }}
       />
     </div>
   );

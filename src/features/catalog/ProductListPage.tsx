@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ListRowCheckbox, ListSelectAllCheckbox } from "@/components/ListSelectionCheckbox";
 import { DebouncedSearchInput, ListFiltersChrome } from "@/components/ListFilters";
 import { StackedOnMobile } from "@/components/StackedOnMobile";
 import { TableSkeleton } from "@/components/loading";
@@ -25,10 +27,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useBulkMutation } from "@/hooks/useBulkApi";
 import { useBrands, useCategories, useDeleteProduct, useProducts } from "@/hooks/useCatalog";
 import { useListFilters } from "@/hooks/useListFilters";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useRowSelection } from "@/hooks/useRowSelection";
 import { ApiError, api, mediaPreviewUrl } from "@/lib/api";
+import { toastBulkResult } from "@/lib/bulkToast";
 import { formatPkr } from "@/lib/utils";
 import type { Availability, Brand, Category, Collection, ProductListItem, ProductStatus } from "@/types/api";
 
@@ -120,6 +125,8 @@ export function ProductListPage() {
   );
   const { values, set, clear, page, setPage } = useListFilters(defaults);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const bulk = useBulkMutation([["products"], ["inventory"], ["dashboard"]]);
 
   const brands = useBrands({ page: 1, limit: 100 });
   const categories = useCategories({ page: 1, limit: 100 });
@@ -138,6 +145,23 @@ export function ProductListPage() {
   const hasFilters = Boolean(
     values.q || values.status || values.availability || values.brand_id || values.category_id,
   );
+  const pageIds = useMemo(() => products.data?.data.map((row) => row.id) ?? [], [products.data?.data]);
+  const selection = useRowSelection(
+    pageIds,
+    `${page}-${values.q}-${values.status}-${values.availability}-${values.brand_id}-${values.category_id}`,
+  );
+  const canSelect = canDelete || canUpdate;
+
+  async function runBulk(path: string, body: unknown) {
+    try {
+      const { result, message } = await bulk.mutateAsync({ path, body });
+      toastBulkResult(message, result);
+      selection.clear();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : "Bulk action failed.";
+      toast.error(message);
+    }
+  }
 
   async function handleDelete() {
     if (!pendingId) return;
@@ -212,6 +236,15 @@ export function ProductListPage() {
           <caption className="sr-only">Products matching your filters</caption>
           <TableHeader>
             <TableRow>
+              {canSelect ? (
+                <TableHead className="w-10 bg-card">
+                  <ListSelectAllCheckbox
+                    allSelected={selection.allSelected}
+                    someSelected={selection.someSelected}
+                    onToggle={selection.toggleAll}
+                  />
+                </TableHead>
+              ) : null}
               <TableHead className="sticky left-0 z-[1] min-w-[3rem] bg-card">#</TableHead>
               <TableHead className="min-w-[3rem]"> </TableHead>
               <TableHead>Piece</TableHead>
@@ -226,6 +259,15 @@ export function ProductListPage() {
           <TableBody>
             {products.data.data.map((product, index) => (
               <TableRow key={product.id}>
+                {canSelect ? (
+                  <TableCell>
+                    <ListRowCheckbox
+                      checked={selection.isSelected(product.id)}
+                      onToggle={() => selection.toggle(product.id)}
+                      label={`Select ${product.name}`}
+                    />
+                  </TableCell>
+                ) : null}
                 <TableCell className="sticky left-0 z-[1] bg-card">{rowNumber(page, LIMIT, index)}</TableCell>
                 <TableCell>
                   <ProductThumbnail product={product} />
@@ -269,6 +311,13 @@ export function ProductListPage() {
         {products.data.data.map((product, index) => (
           <div key={product.id} className="border border-border bg-card p-4">
             <div className="flex gap-3">
+              {canSelect ? (
+                <ListRowCheckbox
+                  checked={selection.isSelected(product.id)}
+                  onToggle={() => selection.toggle(product.id)}
+                  label={`Select ${product.name}`}
+                />
+              ) : null}
               <ProductThumbnail product={product} />
               <div className="min-w-0 flex-1 space-y-1">
                 <p className="font-medium">{product.name}</p>
@@ -358,7 +407,62 @@ export function ProductListPage() {
           action={canCreate ? { to: "/products/new", label: "Add product" } : undefined}
         />
       ) : (
-        <StackedOnMobile table={tableView} stack={stackView} />
+        <>
+          <BulkActionBar count={selection.selectedCount} onClear={selection.clear}>
+            {canUpdate ? (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  pending={bulk.isPending}
+                  onClick={() =>
+                    void runBulk("/api/v1/products/bulk-update", {
+                      ids: selection.selectedIds,
+                      status: "ACTIVE",
+                    })
+                  }
+                >
+                  Publish
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  pending={bulk.isPending}
+                  onClick={() =>
+                    void runBulk("/api/v1/products/bulk-update", {
+                      ids: selection.selectedIds,
+                      status: "DRAFT",
+                    })
+                  }
+                >
+                  Draft
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  pending={bulk.isPending}
+                  onClick={() =>
+                    void runBulk("/api/v1/products/bulk-update", {
+                      ids: selection.selectedIds,
+                      status: "ARCHIVED",
+                    })
+                  }
+                >
+                  Archive
+                </Button>
+              </>
+            ) : null}
+            {canDelete ? (
+              <Button type="button" size="sm" variant="destructive" onClick={() => setBulkDeleteOpen(true)}>
+                Delete
+              </Button>
+            ) : null}
+          </BulkActionBar>
+          <StackedOnMobile table={tableView} stack={stackView} />
+        </>
       )}
 
       <PaginationBar page={page} limit={LIMIT} total={products.data?.total ?? 0} onPage={setPage} />
@@ -372,6 +476,17 @@ export function ProductListPage() {
           if (!open) setPendingId(null);
         }}
         onConfirm={() => void handleDelete()}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        title="Delete selected pieces?"
+        body="Pieces on orders will be skipped. Archive those instead."
+        pending={bulk.isPending}
+        onOpenChange={setBulkDeleteOpen}
+        onConfirm={() => {
+          setBulkDeleteOpen(false);
+          void runBulk("/api/v1/products/bulk-delete", { ids: selection.selectedIds });
+        }}
       />
     </div>
   );

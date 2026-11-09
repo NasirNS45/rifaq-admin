@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { DebouncedSearchInput, ListFiltersChrome } from "@/components/ListFilters";
 import { StackedOnMobile } from "@/components/StackedOnMobile";
 import { TableSkeleton } from "@/components/loading";
 import { EmptyState, PageHeader, PaginationBar, rowNumber } from "@/components/PageHeader";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
@@ -16,11 +18,15 @@ import {
 import { usePermissions } from "@/hooks/usePermissions";
 import { useListFilters } from "@/hooks/useListFilters";
 import { useAdminUsers, useAuditLogs } from "@/hooks/useUsers";
+import { api } from "@/lib/api";
+import { downloadCsv, fetchAllPages } from "@/lib/csvExport";
+import type { AuditLog } from "@/types/api";
 
 const LIMIT = 20;
 
 export function AuditPage() {
   const { canReadUsers } = usePermissions();
+  const [exporting, setExporting] = useState(false);
   const defaults = useMemo(
     () => ({
       q: "",
@@ -44,6 +50,42 @@ export function AuditPage() {
   const hasFilters = Boolean(
     values.q || values.action || values.entity_type || values.admin_user_id,
   );
+
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const params = {
+        q: values.q || undefined,
+        action: values.action || undefined,
+        entity_type: values.entity_type || undefined,
+        admin_user_id: values.admin_user_id || undefined,
+      };
+      const rows = await fetchAllPages<AuditLog>(async (page) => {
+        const query = new URLSearchParams({ page: String(page), limit: "100" });
+        if (params.q) query.set("q", params.q);
+        if (params.action) query.set("action", params.action);
+        if (params.entity_type) query.set("entity_type", params.entity_type);
+        if (params.admin_user_id) query.set("admin_user_id", params.admin_user_id);
+        return api.getPage<AuditLog>(`/api/v1/audit-logs?${query.toString()}`);
+      });
+      downloadCsv(
+        "audit-log.csv",
+        ["When", "Who", "Action", "Entity type", "Entity id"],
+        rows.map((row) => [
+          new Date(row.created_at).toISOString(),
+          row.actor_email ?? row.actor_name ?? "",
+          row.action,
+          row.entity_type,
+          row.entity_id ?? "",
+        ]),
+      );
+      toast.success(`Exported ${rows.length} rows.`);
+    } catch {
+      toast.error("Export failed.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const filterFields = (
     <>
@@ -133,6 +175,13 @@ export function AuditPage() {
         eyebrow="System"
         title="Activity"
         description="Writes to products, inventory, orders, discounts, and admin users. Passwords are never stored here."
+        action={
+          canReadUsers ? (
+            <Button type="button" variant="outline" pending={exporting} onClick={() => void exportCsv()}>
+              Export CSV
+            </Button>
+          ) : null
+        }
       />
       <ListFiltersChrome
         pending={logs.isFetching}

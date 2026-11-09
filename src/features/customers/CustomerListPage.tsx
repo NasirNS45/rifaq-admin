@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Link } from "react-router";
 import { DebouncedSearchInput } from "@/components/ListFilters";
 import { StackedOnMobile } from "@/components/StackedOnMobile";
@@ -15,14 +16,42 @@ import {
 } from "@/components/ui/table";
 import { useCustomers } from "@/hooks/useOrders";
 import { useListFilters } from "@/hooks/useListFilters";
+import { usePermissions } from "@/hooks/usePermissions";
+import { api } from "@/lib/api";
+import { downloadCsv, fetchAllPages } from "@/lib/csvExport";
 import { formatPkr } from "@/lib/utils";
+import type { CustomerListItem } from "@/types/api";
 
 const LIMIT = 20;
 
 export function CustomerListPage() {
+  const { canReadCustomers } = usePermissions();
+  const [exporting, setExporting] = useState(false);
   const defaults = useMemo(() => ({ q: "" }), []);
   const { values, set, page, setPage } = useListFilters(defaults);
   const customers = useCustomers({ q: values.q || undefined, page, limit: LIMIT });
+
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const q = values.q || undefined;
+      const rows = await fetchAllPages<CustomerListItem>(async (pageNum) => {
+        const query = new URLSearchParams({ page: String(pageNum), limit: "100" });
+        if (q) query.set("q", q);
+        return api.getPage<CustomerListItem>(`/api/v1/customers?${query.toString()}`);
+      });
+      downloadCsv(
+        "customers.csv",
+        ["Name", "Phone", "Orders", "Total spent"],
+        rows.map((row) => [row.name, row.phone, String(row.total_orders), row.total_spent]),
+      );
+      toast.success(`Exported ${rows.length} customers.`);
+    } catch {
+      toast.error("Export failed.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const tableView =
     !customers.isLoading && !customers.isError && customers.data?.data.length ? (
@@ -84,6 +113,13 @@ export function CustomerListPage() {
         eyebrow="Customers"
         title="Customers"
         description="Phone-first records created at prepaid checkout. Phone is the identity and cannot be changed here."
+        action={
+          canReadCustomers ? (
+            <Button type="button" variant="outline" pending={exporting} onClick={() => void exportCsv()}>
+              Export CSV
+            </Button>
+          ) : null
+        }
       />
       <div className="max-w-md">
         <DebouncedSearchInput

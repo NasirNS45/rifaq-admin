@@ -1,6 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
+import { toast } from "sonner";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import { DebouncedSearchInput } from "@/components/ListFilters";
+import { ListRowCheckbox, ListSelectAllCheckbox } from "@/components/ListSelectionCheckbox";
 import { StackedOnMobile } from "@/components/StackedOnMobile";
 import { TableSkeleton } from "@/components/loading";
 import { EmptyState, PageHeader, PaginationBar, rowNumber } from "@/components/PageHeader";
@@ -14,9 +17,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useBulkMutation } from "@/hooks/useBulkApi";
 import { useListFilters } from "@/hooks/useListFilters";
 import { useOrders } from "@/hooks/useOrders";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useRowSelection } from "@/hooks/useRowSelection";
+import { ApiError } from "@/lib/api";
+import { toastBulkResult } from "@/lib/bulkToast";
 import { cn, formatPkr } from "@/lib/utils";
+import type { OrderStatus } from "@/types/api";
 
 const GROUPS = ["all", "pending", "confirmed", "processing", "delivered", "cancelled"] as const;
 
@@ -63,8 +72,18 @@ function parseGroup(value: string): OrderGroup {
 
 const LIMIT = 20;
 
+const BULK_STATUSES: { value: OrderStatus; label: string }[] = [
+  { value: "PROCESSING", label: "Processing" },
+  { value: "READY_FOR_DELIVERY", label: "Ready" },
+  { value: "OUT_FOR_DELIVERY", label: "Out for delivery" },
+  { value: "DELIVERED", label: "Delivered" },
+  { value: "CANCELLED", label: "Cancel" },
+];
+
 export function OrderListPage() {
+  const { canUpdateOrders } = usePermissions();
   const defaults = useMemo(() => ({ q: "", status: "" }), []);
+  const [bulkStatus, setBulkStatus] = useState<OrderStatus>("PROCESSING");
   const { values, set, page, setPage } = useListFilters(defaults);
   const group = parseGroup(values.status);
   const copy = COPY[group];
@@ -75,6 +94,23 @@ export function OrderListPage() {
     limit: LIMIT,
     status: group === "all" ? undefined : group,
   });
+  const bulk = useBulkMutation([["orders"], ["dashboard"]]);
+  const pageIds = useMemo(() => orders.data?.data.map((row) => row.id) ?? [], [orders.data?.data]);
+  const selection = useRowSelection(pageIds, `${page}-${values.q}-${group}`);
+
+  async function applyBulkStatus(status: OrderStatus) {
+    try {
+      const { result, message } = await bulk.mutateAsync({
+        path: "/api/v1/orders/bulk-update",
+        body: { ids: selection.selectedIds, status },
+      });
+      toastBulkResult(message, result);
+      selection.clear();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : "Bulk update failed.";
+      toast.error(message);
+    }
+  }
 
   function setGroup(next: OrderGroup) {
     set({ status: next === "all" ? "" : next });
@@ -87,6 +123,15 @@ export function OrderListPage() {
           <caption className="sr-only">Orders for {copy.label}</caption>
           <TableHeader>
             <TableRow>
+              {canUpdateOrders ? (
+                <TableHead className="w-10 bg-card">
+                  <ListSelectAllCheckbox
+                    allSelected={selection.allSelected}
+                    someSelected={selection.someSelected}
+                    onToggle={selection.toggleAll}
+                  />
+                </TableHead>
+              ) : null}
               <TableHead className="sticky left-0 z-[1] min-w-[3rem] bg-card">#</TableHead>
               <TableHead>Order</TableHead>
               <TableHead>Customer</TableHead>
@@ -99,6 +144,15 @@ export function OrderListPage() {
           <TableBody>
             {orders.data.data.map((order, index) => (
               <TableRow key={order.id}>
+                {canUpdateOrders ? (
+                  <TableCell>
+                    <ListRowCheckbox
+                      checked={selection.isSelected(order.id)}
+                      onToggle={() => selection.toggle(order.id)}
+                      label={`Select order ${order.order_number}`}
+                    />
+                  </TableCell>
+                ) : null}
                 <TableCell className="sticky left-0 z-[1] bg-card">{rowNumber(page, LIMIT, index)}</TableCell>
                 <TableCell>
                   <p>{order.order_number}</p>
@@ -135,6 +189,13 @@ export function OrderListPage() {
       <>
         {orders.data.data.map((order, index) => (
           <div key={order.id} className="space-y-3 border border-border bg-card p-4">
+            {canUpdateOrders ? (
+              <ListRowCheckbox
+                checked={selection.isSelected(order.id)}
+                onToggle={() => selection.toggle(order.id)}
+                label={`Select order ${order.order_number}`}
+              />
+            ) : null}
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="font-medium">{order.order_number}</p>
@@ -206,7 +267,34 @@ export function OrderListPage() {
       ) : !orders.data?.data.length ? (
         <EmptyState title="No orders" body={copy.empty} />
       ) : (
-        <StackedOnMobile table={tableView} stack={stackView} />
+        <>
+          {canUpdateOrders ? (
+            <BulkActionBar count={selection.selectedCount} onClear={selection.clear}>
+              <select
+                className="h-9 rounded-md border border-input bg-card px-2 text-sm"
+                value={bulkStatus}
+                onChange={(event) => setBulkStatus(event.target.value as OrderStatus)}
+                aria-label="Bulk status"
+              >
+                {BULK_STATUSES.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                size="sm"
+                variant="default"
+                pending={bulk.isPending}
+                onClick={() => void applyBulkStatus(bulkStatus)}
+              >
+                Apply status
+              </Button>
+            </BulkActionBar>
+          ) : null}
+          <StackedOnMobile table={tableView} stack={stackView} />
+        </>
       )}
 
       <PaginationBar page={page} limit={LIMIT} total={orders.data?.total ?? 0} onPage={setPage} />

@@ -167,6 +167,8 @@ export const api = {
     request<T>(path, { method: "DELETE", ...(options?.signal ? { signal: options.signal } : {}) }),
   upload: <T>(path: string, body: FormData, options?: ApiRequestOptions) =>
     request<T>(path, { method: "POST", body, ...(options?.signal ? { signal: options.signal } : {}) }),
+  postEnvelope: <T>(path: string, body?: unknown, options?: ApiRequestOptions) =>
+    requestPayload<T>(path, jsonInit("POST", body, options?.signal)),
 };
 
 export function mediaPreviewUrl(path: string): string {

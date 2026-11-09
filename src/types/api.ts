@@ -16,6 +16,16 @@ export type Envelope<T> = {
   errors?: { loc?: string; message: string }[] | null;
 };
 
+export type BulkFailure = {
+  id: string;
+  reason: string;
+};
+
+export type BulkResult = {
+  succeeded: string[];
+  failed: BulkFailure[];
+};
+
 export type AdminRole = "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "STAFF";
 
 export type AdminUser = {

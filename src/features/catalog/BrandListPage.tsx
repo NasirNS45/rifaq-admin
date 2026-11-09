@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ListRowCheckbox, ListSelectAllCheckbox } from "@/components/ListSelectionCheckbox";
 import { TableSkeleton } from "@/components/loading";
 import { EmptyState, PageHeader, PaginationBar, boolSelectValue, parseOptionalBool, rowNumber } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -16,9 +18,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useBulkMutation } from "@/hooks/useBulkApi";
 import { useBrands, useDeleteBrand } from "@/hooks/useCatalog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useRowSelection } from "@/hooks/useRowSelection";
 import { ApiError } from "@/lib/api";
+import { toastBulkResult } from "@/lib/bulkToast";
 
 export function BrandListPage() {
   const { canCreate, canUpdate, canDelete } = usePermissions();
@@ -26,8 +31,23 @@ export function BrandListPage() {
   const [isActive, setIsActive] = useState<boolean | undefined>(undefined);
   const [page, setPage] = useState(1);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const brands = useBrands({ q, is_active: isActive, page, limit: 20 });
   const remove = useDeleteBrand();
+  const bulk = useBulkMutation([["brands"]]);
+  const pageIds = useMemo(() => brands.data?.data.map((row) => row.id) ?? [], [brands.data?.data]);
+  const selection = useRowSelection(pageIds, `${page}-${q}-${String(isActive)}`);
+
+  async function runBulk(path: string, body: unknown) {
+    try {
+      const { result, message } = await bulk.mutateAsync({ path, body });
+      toastBulkResult(message, result);
+      selection.clear();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : "Bulk action failed.";
+      toast.error(message);
+    }
+  }
 
   async function handleDelete() {
     if (!pendingId) return;
@@ -86,10 +106,64 @@ export function BrandListPage() {
           action={canCreate ? { to: "/brands/new", label: "Add brand" } : undefined}
         />
       ) : (
+        <div className="space-y-2">
+          <BulkActionBar count={selection.selectedCount} onClear={selection.clear}>
+            {canUpdate ? (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  pending={bulk.isPending}
+                  onClick={() =>
+                    void runBulk("/api/v1/brands/bulk-update", {
+                      ids: selection.selectedIds,
+                      is_active: true,
+                    })
+                  }
+                >
+                  Show
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  pending={bulk.isPending}
+                  onClick={() =>
+                    void runBulk("/api/v1/brands/bulk-update", {
+                      ids: selection.selectedIds,
+                      is_active: false,
+                    })
+                  }
+                >
+                  Hide
+                </Button>
+              </>
+            ) : null}
+            {canDelete ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                onClick={() => setBulkDeleteOpen(true)}
+              >
+                Delete
+              </Button>
+            ) : null}
+          </BulkActionBar>
         <div className="border border-border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
+                {canDelete || canUpdate ? (
+                  <TableHead className="w-10">
+                    <ListSelectAllCheckbox
+                      allSelected={selection.allSelected}
+                      someSelected={selection.someSelected}
+                      onToggle={selection.toggleAll}
+                    />
+                  </TableHead>
+                ) : null}
                 <TableHead className="w-12">#</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Slug</TableHead>
@@ -100,6 +174,15 @@ export function BrandListPage() {
             <TableBody>
               {brands.data.data.map((brand, index) => (
                 <TableRow key={brand.id}>
+                  {canDelete || canUpdate ? (
+                    <TableCell>
+                      <ListRowCheckbox
+                        checked={selection.isSelected(brand.id)}
+                        onToggle={() => selection.toggle(brand.id)}
+                        label={`Select ${brand.name}`}
+                      />
+                    </TableCell>
+                  ) : null}
                   <TableCell>{rowNumber(page, 20, index)}</TableCell>
                   <TableCell>{brand.name}</TableCell>
                   <TableCell>{brand.slug}</TableCell>
@@ -125,6 +208,7 @@ export function BrandListPage() {
             </TableBody>
           </Table>
         </div>
+        </div>
       )}
       <PaginationBar
         page={page}
@@ -141,6 +225,17 @@ export function BrandListPage() {
           if (!open) setPendingId(null);
         }}
         onConfirm={() => void handleDelete()}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        title="Delete selected brands?"
+        body="Only empty brands can be removed. Items still in use will be skipped."
+        pending={bulk.isPending}
+        onOpenChange={setBulkDeleteOpen}
+        onConfirm={() => {
+          setBulkDeleteOpen(false);
+          void runBulk("/api/v1/brands/bulk-delete", { ids: selection.selectedIds });
+        }}
       />
     </div>
   );

@@ -1,5 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
+import { toast } from "sonner";
+import { BulkActionBar } from "@/components/BulkActionBar";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ListRowCheckbox, ListSelectAllCheckbox } from "@/components/ListSelectionCheckbox";
 import { TableSkeleton } from "@/components/loading";
 import { EmptyState, PageHeader, PaginationBar, boolSelectValue, parseOptionalBool, rowNumber } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +18,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useBulkMutation } from "@/hooks/useBulkApi";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useRowSelection } from "@/hooks/useRowSelection";
 import { useAdminUsers } from "@/hooks/useUsers";
+import { ApiError } from "@/lib/api";
+import { toastBulkResult } from "@/lib/bulkToast";
 import type { AdminRole } from "@/types/api";
 
 const ROLE_LABEL: Record<AdminRole, string> = {
@@ -31,6 +39,7 @@ export function UserListPage() {
   const [role, setRole] = useState<AdminRole | "">("");
   const [isActive, setIsActive] = useState<boolean | undefined>(undefined);
   const [page, setPage] = useState(1);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const users = useAdminUsers({
     q,
     role: role || undefined,
@@ -38,6 +47,24 @@ export function UserListPage() {
     page,
     limit: 20,
   });
+  const bulk = useBulkMutation([["users"]]);
+  const pageIds = useMemo(() => users.data?.data.map((row) => row.id) ?? [], [users.data?.data]);
+  const selection = useRowSelection(pageIds, `${page}-${q}-${role}-${String(isActive)}`);
+
+  async function runBulkDeactivate() {
+    try {
+      const { result, message } = await bulk.mutateAsync({
+        path: "/api/v1/users/bulk-deactivate",
+        body: { ids: selection.selectedIds },
+      });
+      toastBulkResult(message, result);
+      selection.clear();
+      setBulkOpen(false);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : "Bulk deactivate failed.";
+      toast.error(message);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -96,46 +123,87 @@ export function UserListPage() {
           action={canManageUsers ? { to: "/system/users/new", label: "Add user" } : undefined}
         />
       ) : (
-        <div className="border border-border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">#</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.data.data.map((user, index) => (
-                <TableRow key={user.id}>
-                  <TableCell>{rowNumber(page, 20, index)}</TableCell>
-                  <TableCell>{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{ROLE_LABEL[user.role]}</TableCell>
-                  <TableCell>
-                    <Badge variant={user.is_active ? "secondary" : "outline"}>
-                      {user.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {canReadUsers ? (
-                      <Button asChild variant="ghost" size="sm">
-                        <Link to={`/system/users/${user.id}`}>
-                          {canManageUsers ? "Edit" : "Open"}
-                        </Link>
-                      </Button>
-                    ) : null}
-                  </TableCell>
+        <div className="space-y-2">
+          {canManageUsers ? (
+            <BulkActionBar count={selection.selectedCount} onClear={selection.clear}>
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                disabled={selection.selectedCount < 1}
+                onClick={() => setBulkOpen(true)}
+              >
+                Deactivate
+              </Button>
+            </BulkActionBar>
+          ) : null}
+          <div className="border border-border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {canManageUsers ? (
+                    <TableHead className="w-10">
+                      <ListSelectAllCheckbox
+                        allSelected={selection.allSelected}
+                        someSelected={selection.someSelected}
+                        onToggle={selection.toggleAll}
+                      />
+                    </TableHead>
+                  ) : null}
+                  <TableHead className="w-12">#</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {users.data.data.map((user, index) => (
+                  <TableRow key={user.id}>
+                    {canManageUsers ? (
+                      <TableCell>
+                        <ListRowCheckbox
+                          checked={selection.isSelected(user.id)}
+                          onToggle={() => selection.toggle(user.id)}
+                          label={`Select ${user.name}`}
+                        />
+                      </TableCell>
+                    ) : null}
+                    <TableCell>{rowNumber(page, 20, index)}</TableCell>
+                    <TableCell>{user.name}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{ROLE_LABEL[user.role]}</TableCell>
+                    <TableCell>
+                      <Badge variant={user.is_active ? "secondary" : "outline"}>
+                        {user.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {canReadUsers ? (
+                        <Button asChild variant="ghost" size="sm">
+                          <Link to={`/system/users/${user.id}`}>
+                            {canManageUsers ? "Edit" : "Open"}
+                          </Link>
+                        </Button>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
       <PaginationBar page={page} limit={20} total={users.data?.total ?? 0} onPage={setPage} />
+      <ConfirmDialog
+        open={bulkOpen}
+        title="Deactivate selected users?"
+        body="You cannot deactivate yourself or the last active super admin. Those accounts will be skipped."
+        pending={bulk.isPending}
+        onOpenChange={setBulkOpen}
+        onConfirm={() => void runBulkDeactivate()}
+      />
     </div>
   );
 }
