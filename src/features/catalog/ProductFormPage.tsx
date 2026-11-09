@@ -32,6 +32,7 @@ import {
   useSaveProduct,
 } from "@/hooks/useCatalog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { focusFormField, useSaveIntent } from "@/hooks/useSaveIntent";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { ProductStatus } from "@/types/api";
@@ -40,10 +41,19 @@ import {
   type ProductFormGroup,
 } from "./productFormGroups";
 import {
+  DEFAULT_PRODUCT_FORM_VALUES,
   productFormSchema,
   splitList,
   type ProductFormValues,
 } from "./productFormSchema";
+
+function createInitialSectionOpen(): Record<string, boolean> {
+  const initial: Record<string, boolean> = {};
+  for (const group of PRODUCT_FORM_GROUPS) {
+    initial[group.id] = !group.optional;
+  }
+  return initial;
+}
 
 function getNestedError(
   errors: FieldErrors<ProductFormValues>,
@@ -98,56 +108,16 @@ export function ProductFormPage() {
   const categories = useCategories({ page: 1, limit: 100, is_active: true });
   const collections = useCollections({ page: 1, limit: 100 });
   const save = useSaveProduct();
+  const { beginSubmit, consumeIntent, clearPendingIntent, pendingIntent } = useSaveIntent();
   const canWrite = isNew ? canCreate : canUpdate;
 
   const [step, setStep] = useState(0);
   const [maxStepReached, setMaxStepReached] = useState(0);
-  const [sectionOpen, setSectionOpen] = useState<Record<string, boolean>>(
-    () => {
-      const initial: Record<string, boolean> = {};
-      for (const group of PRODUCT_FORM_GROUPS) {
-        initial[group.id] = !group.optional;
-      }
-      return initial;
-    },
-  );
+  const [sectionOpen, setSectionOpen] = useState<Record<string, boolean>>(createInitialSectionOpen);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
-    defaultValues: {
-      name: "",
-      slug: "",
-      sku: "",
-      brand_id: "",
-      category_id: "",
-      description: "",
-      short_description: "",
-      price: "",
-      original_price: "",
-      cost_price: "",
-      stock_quantity: 0,
-      low_stock_threshold: 2,
-      status: "DRAFT",
-      is_indexable: true,
-      fabric: "",
-      care_instructions: "",
-      authenticity_note: "",
-      pieces: "",
-      edit_note: "",
-      video_url: "",
-      keep_pre_order: false,
-      is_featured: false,
-      is_new: false,
-      is_sale: false,
-      is_just_in: false,
-      sort_order: 0,
-      seo_title: "",
-      seo_description: "",
-      images: [],
-      sizes_text: "",
-      colors_text: "",
-      collection_ids: [],
-    },
+    defaultValues: DEFAULT_PRODUCT_FORM_VALUES,
   });
 
   useEffect(() => {
@@ -229,6 +199,23 @@ export function ProductFormPage() {
     [isNew],
   );
 
+  const onInvalidWithIntent = useCallback(
+    (errors: FieldErrors<ProductFormValues>) => {
+      clearPendingIntent();
+      onInvalid(errors);
+    },
+    [clearPendingIntent, onInvalid],
+  );
+
+  function resetFormForAnother() {
+    form.reset(DEFAULT_PRODUCT_FORM_VALUES);
+    setStep(0);
+    setMaxStepReached(0);
+    setSectionOpen(createInitialSectionOpen());
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    focusFormField("name");
+  }
+
   async function onSubmit(values: ProductFormValues) {
     try {
       const saved = await save.mutateAsync({
@@ -271,15 +258,40 @@ export function ProductFormPage() {
           collection_ids: values.collection_ids,
         },
       });
+      const intent = consumeIntent();
+      if (intent === "saveAndNew") {
+        if (isNew) {
+          toast.success("Product added. Add the next one.");
+          resetFormForAnother();
+          return;
+        }
+        toast.success("Product updated.");
+        form.reset(DEFAULT_PRODUCT_FORM_VALUES);
+        navigate("/products/new");
+        return;
+      }
       toast.success(isNew ? "Product added." : "Product updated.");
       navigate(`/products/${saved.id}`, { replace: true });
     } catch (error) {
+      clearPendingIntent();
       const message =
         error instanceof ApiError
           ? error.message
           : "Could not save this piece.";
       toast.error(message);
     }
+  }
+
+  function submitForm(event: React.FormEvent<HTMLFormElement>) {
+    if (pendingIntent === null) {
+      beginSubmit("save");
+    }
+    void form.handleSubmit(onSubmit, onInvalidWithIntent)(event);
+  }
+
+  function submitSaveAndNew() {
+    beginSubmit("saveAndNew");
+    void form.handleSubmit(onSubmit, onInvalidWithIntent)();
   }
 
   const currentGroup = PRODUCT_FORM_GROUPS[step];
@@ -753,7 +765,7 @@ export function ProductFormPage() {
             isNew ? "p-6" : "space-y-4 p-6",
           )}
           noValidate
-          onSubmit={form.handleSubmit(onSubmit, onInvalid)}
+          onSubmit={submitForm}
           onKeyDown={(event) => {
             if (event.key !== "Enter") return;
             if (event.target instanceof HTMLTextAreaElement) return;
@@ -945,24 +957,50 @@ export function ProductFormPage() {
               </Button>
             ) : null}
             {isNew && step >= LAST_STEP_INDEX ? (
-              <Button
-                type="submit"
-                form="product-form"
-                className="min-h-11 flex-1 sm:min-h-10"
-                pending={save.isPending}
-              >
-                {save.isPending ? "Saving" : "Save product"}
-              </Button>
+              <>
+                <Button
+                  type="submit"
+                  form="product-form"
+                  className="min-h-11 flex-1 sm:min-h-10"
+                  pending={save.isPending && pendingIntent === "save"}
+                  onClick={() => beginSubmit("save")}
+                >
+                  {save.isPending && pendingIntent === "save" ? "Saving" : "Save product"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 flex-1 sm:min-h-10"
+                  pending={save.isPending && pendingIntent === "saveAndNew"}
+                  disabled={save.isPending}
+                  onClick={submitSaveAndNew}
+                >
+                  {save.isPending && pendingIntent === "saveAndNew" ? "Saving" : "Save & add another"}
+                </Button>
+              </>
             ) : null}
             {!isNew ? (
-              <Button
-                type="submit"
-                form="product-form"
-                className="min-h-11 flex-1 sm:min-h-10"
-                pending={save.isPending}
-              >
-                {save.isPending ? "Saving" : "Save product"}
-              </Button>
+              <>
+                <Button
+                  type="submit"
+                  form="product-form"
+                  className="min-h-11 flex-1 sm:min-h-10"
+                  pending={save.isPending && pendingIntent === "save"}
+                  onClick={() => beginSubmit("save")}
+                >
+                  {save.isPending && pendingIntent === "save" ? "Saving" : "Save product"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 flex-1 sm:min-h-10"
+                  pending={save.isPending && pendingIntent === "saveAndNew"}
+                  disabled={save.isPending}
+                  onClick={submitSaveAndNew}
+                >
+                  {save.isPending && pendingIntent === "saveAndNew" ? "Saving" : "Save & add new"}
+                </Button>
+              </>
             ) : null}
           </div>
         </div>

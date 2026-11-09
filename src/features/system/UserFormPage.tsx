@@ -4,15 +4,16 @@ import { useNavigate, useParams } from "react-router";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { FormSaveActions } from "@/components/FormSaveActions";
 import { FormSkeleton } from "@/components/loading";
 import { FieldError, PageHeader } from "@/components/PageHeader";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAdminUser, useSaveAdminUser } from "@/hooks/useUsers";
+import { focusFormField, useSaveIntent } from "@/hooks/useSaveIntent";
 import { ApiError } from "@/lib/api";
 import type { AdminRole } from "@/types/api";
 
@@ -26,6 +27,14 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+const DEFAULT_FORM_VALUES: FormValues = {
+  name: "",
+  email: "",
+  password: "",
+  role: "STAFF",
+  is_active: true,
+};
+
 export function UserFormPage() {
   const { id } = useParams();
   const isNew = !id;
@@ -34,16 +43,11 @@ export function UserFormPage() {
   const me = useCurrentUser();
   const existing = useAdminUser(id);
   const save = useSaveAdminUser();
+  const { beginSubmit, consumeIntent, clearPendingIntent, pendingIntent } = useSaveIntent();
   const isSelf = Boolean(id && me.data?.id === id);
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      name: "",
-      email: "",
-      password: "",
-      role: "STAFF",
-      is_active: true,
-    },
+    defaultValues: DEFAULT_FORM_VALUES,
   });
 
   useEffect(() => {
@@ -57,12 +61,21 @@ export function UserFormPage() {
     });
   }, [existing.data, form]);
 
+  function submitForm(event: React.FormEvent<HTMLFormElement>) {
+    if (pendingIntent === null) {
+      beginSubmit("save");
+    }
+    void form.handleSubmit(onSubmit, () => clearPendingIntent())(event);
+  }
+
   async function onSubmit(values: FormValues) {
     if (isNew && values.password.length < 8) {
+      clearPendingIntent();
       form.setError("password", { message: "Password must be at least 8 characters." });
       return;
     }
     if (!isNew && values.password && values.password.length < 8) {
+      clearPendingIntent();
       form.setError("password", { message: "Password must be at least 8 characters." });
       return;
     }
@@ -81,9 +94,23 @@ export function UserFormPage() {
       };
       if (values.password) body.password = values.password;
       const saved = await save.mutateAsync({ id, body });
+      const intent = consumeIntent();
+      if (intent === "saveAndNew") {
+        if (isNew) {
+          toast.success("Admin user created. Add the next one.");
+          form.reset(DEFAULT_FORM_VALUES);
+          focusFormField("name");
+          return;
+        }
+        toast.success("Admin user updated.");
+        form.reset(DEFAULT_FORM_VALUES);
+        navigate("/system/users/new");
+        return;
+      }
       toast.success(isNew ? "Admin user created." : "Admin user updated.");
       navigate(`/system/users/${saved.id}`, { replace: true });
     } catch (error) {
+      clearPendingIntent();
       const message = error instanceof ApiError ? error.message : "Could not save this user.";
       toast.error(message);
     }
@@ -110,7 +137,11 @@ export function UserFormPage() {
         title={isNew ? "Add admin user" : "Edit admin user"}
         description="Passwords are never shown after save. Deactivate an account instead of deleting it."
       />
-      <form className="space-y-5 border border-border bg-card p-6" noValidate onSubmit={form.handleSubmit(onSubmit)}>
+      <form
+        className="space-y-5 border border-border bg-card p-6"
+        noValidate
+        onSubmit={submitForm}
+      >
         <div className="space-y-2">
           <Label htmlFor="name">Name</Label>
           <Input id="name" disabled={!canManageUsers} {...form.register("name")} />
@@ -150,9 +181,17 @@ export function UserFormPage() {
           <p className="text-xs text-muted-foreground">You cannot deactivate your own account.</p>
         ) : null}
         {canManageUsers ? (
-          <Button type="submit" pending={save.isPending}>
-            {save.isPending ? "Saving" : "Save user"}
-          </Button>
+          <FormSaveActions
+            isNew={isNew}
+            primaryLabel="Save user"
+            isPending={save.isPending}
+            pendingIntent={pendingIntent}
+            onPrimaryClick={() => beginSubmit("save")}
+            onSaveAndNewClick={() => {
+              beginSubmit("saveAndNew");
+              void form.handleSubmit(onSubmit, () => clearPendingIntent())();
+            }}
+          />
         ) : (
           <p className="text-sm text-muted-foreground">
             You can view admin users, but only ADMIN and SUPER_ADMIN can change them.

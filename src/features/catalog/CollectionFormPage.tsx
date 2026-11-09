@@ -4,15 +4,16 @@ import { useNavigate, useParams } from "react-router";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { FormSaveActions } from "@/components/FormSaveActions";
 import { ImageUploadField } from "@/components/ImageUploadField";
 import { FormSkeleton } from "@/components/loading";
 import { FieldError, PageHeader } from "@/components/PageHeader";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCollection, useSaveCollection } from "@/hooks/useCatalog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { focusFormField, useSaveIntent } from "@/hooks/useSaveIntent";
 import { ApiError } from "@/lib/api";
 
 const schema = z.object({
@@ -30,6 +31,19 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+const DEFAULT_FORM_VALUES: FormValues = {
+  name: "",
+  slug: "",
+  description: "",
+  image: "",
+  banner_image: "",
+  is_active: true,
+  is_featured: false,
+  sort_order: 0,
+  seo_title: "",
+  seo_description: "",
+};
+
 export function CollectionFormPage() {
   const { id } = useParams();
   const isNew = !id;
@@ -37,21 +51,11 @@ export function CollectionFormPage() {
   const { canCreate, canUpdate } = usePermissions();
   const existing = useCollection(id);
   const save = useSaveCollection();
+  const { beginSubmit, consumeIntent, clearPendingIntent, pendingIntent } = useSaveIntent();
   const canWrite = isNew ? canCreate : canUpdate;
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      name: "",
-      slug: "",
-      description: "",
-      image: "",
-      banner_image: "",
-      is_active: true,
-      is_featured: false,
-      sort_order: 0,
-      seo_title: "",
-      seo_description: "",
-    },
+    defaultValues: DEFAULT_FORM_VALUES,
   });
   const imageValue = useWatch({ control: form.control, name: "image" }) ?? "";
   const bannerValue = useWatch({ control: form.control, name: "banner_image" }) ?? "";
@@ -72,6 +76,13 @@ export function CollectionFormPage() {
     });
   }, [existing.data, form]);
 
+  function submitForm(event: React.FormEvent<HTMLFormElement>) {
+    if (pendingIntent === null) {
+      beginSubmit("save");
+    }
+    void form.handleSubmit(onSubmit, () => clearPendingIntent())(event);
+  }
+
   async function onSubmit(values: FormValues) {
     try {
       const saved = await save.mutateAsync({
@@ -89,9 +100,23 @@ export function CollectionFormPage() {
           seo_description: values.seo_description.trim() || null,
         },
       });
+      const intent = consumeIntent();
+      if (intent === "saveAndNew") {
+        if (isNew) {
+          toast.success("Collection added. Add the next one.");
+          form.reset(DEFAULT_FORM_VALUES);
+          focusFormField("name");
+          return;
+        }
+        toast.success("Collection updated.");
+        form.reset(DEFAULT_FORM_VALUES);
+        navigate("/collections/new");
+        return;
+      }
       toast.success(isNew ? "Collection added." : "Collection updated.");
       navigate(`/collections/${saved.id}`, { replace: true });
     } catch (error) {
+      clearPendingIntent();
       const message = error instanceof ApiError ? error.message : "Could not save this collection.";
       toast.error(message);
     }
@@ -114,7 +139,11 @@ export function CollectionFormPage() {
         title={isNew ? "Add collection" : "Edit collection"}
         description="Collections group products for the storefront, such as New Arrivals, Summer, or Festive."
       />
-      <form className="space-y-5 border border-border bg-card p-6" noValidate onSubmit={form.handleSubmit(onSubmit)}>
+      <form
+        className="space-y-5 border border-border bg-card p-6"
+        noValidate
+        onSubmit={submitForm}
+      >
         <div className="space-y-2">
           <Label htmlFor="name">Name</Label>
           <Input id="name" disabled={!canWrite} {...form.register("name")} />
@@ -170,9 +199,17 @@ export function CollectionFormPage() {
           <Textarea id="seo_description" disabled={!canWrite} {...form.register("seo_description")} />
         </div>
         {canWrite ? (
-          <Button type="submit" pending={save.isPending}>
-            {save.isPending ? "Saving" : "Save collection"}
-          </Button>
+          <FormSaveActions
+            isNew={isNew}
+            primaryLabel="Save collection"
+            isPending={save.isPending}
+            pendingIntent={pendingIntent}
+            onPrimaryClick={() => beginSubmit("save")}
+            onSaveAndNewClick={() => {
+              beginSubmit("saveAndNew");
+              void form.handleSubmit(onSubmit, () => clearPendingIntent())();
+            }}
+          />
         ) : (
           <p className="text-sm text-muted-foreground">You can view collections, but STAFF cannot change them.</p>
         )}

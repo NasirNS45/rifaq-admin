@@ -4,11 +4,11 @@ import { useNavigate, useParams } from "react-router";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { FormSaveActions } from "@/components/FormSaveActions";
 import { ImageUploadField } from "@/components/ImageUploadField";
 import { SeoTextGuidance } from "@/components/SeoTextGuidance";
 import { FormSkeleton } from "@/components/loading";
 import { FieldError, PageHeader } from "@/components/PageHeader";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -19,6 +19,7 @@ import {
   useSaveCategory,
 } from "@/hooks/useCatalog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { focusFormField, useSaveIntent } from "@/hooks/useSaveIntent";
 import { ApiError } from "@/lib/api";
 
 const schema = z.object({
@@ -43,6 +44,19 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+const DEFAULT_FORM_VALUES: FormValues = {
+  name: "",
+  slug: "",
+  description: "",
+  image: "",
+  parent_id: "",
+  is_active: true,
+  is_indexable: true,
+  sort_order: 0,
+  seo_title: "",
+  seo_description: "",
+};
+
 export function CategoryFormPage() {
   const { id } = useParams();
   const isNew = !id;
@@ -51,21 +65,11 @@ export function CategoryFormPage() {
   const existing = useCategory(id);
   const parents = useCategories({ page: 1, limit: 100 });
   const save = useSaveCategory();
+  const { beginSubmit, consumeIntent, clearPendingIntent, pendingIntent } = useSaveIntent();
   const canWrite = isNew ? canCreate : canUpdate;
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      name: "",
-      slug: "",
-      description: "",
-      image: "",
-      parent_id: "",
-      is_active: true,
-      is_indexable: true,
-      sort_order: 0,
-      seo_title: "",
-      seo_description: "",
-    },
+    defaultValues: DEFAULT_FORM_VALUES,
   });
   const imageValue = useWatch({ control: form.control, name: "image" }) ?? "";
   const slugValue = useWatch({ control: form.control, name: "slug" }) ?? "";
@@ -91,6 +95,13 @@ export function CategoryFormPage() {
     });
   }, [existing.data, form]);
 
+  function submitForm(event: React.FormEvent<HTMLFormElement>) {
+    if (pendingIntent === null) {
+      beginSubmit("save");
+    }
+    void form.handleSubmit(onSubmit, () => clearPendingIntent())(event);
+  }
+
   async function onSubmit(values: FormValues) {
     try {
       const saved = await save.mutateAsync({
@@ -108,9 +119,23 @@ export function CategoryFormPage() {
           seo_description: values.seo_description.trim() || null,
         },
       });
+      const intent = consumeIntent();
+      if (intent === "saveAndNew") {
+        if (isNew) {
+          toast.success("Category added. Add the next one.");
+          form.reset(DEFAULT_FORM_VALUES);
+          focusFormField("name");
+          return;
+        }
+        toast.success("Category updated.");
+        form.reset(DEFAULT_FORM_VALUES);
+        navigate("/categories/new");
+        return;
+      }
       toast.success(isNew ? "Category added." : "Category updated.");
       navigate(`/categories/${saved.id}`, { replace: true });
     } catch (error) {
+      clearPendingIntent();
       const message =
         error instanceof ApiError
           ? error.message
@@ -143,7 +168,7 @@ export function CategoryFormPage() {
       <form
         className="space-y-5 border border-border bg-card p-6"
         noValidate
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={submitForm}
       >
         <div className="space-y-2">
           <Label htmlFor="name">Name</Label>
@@ -254,9 +279,17 @@ export function CategoryFormPage() {
           <SeoTextGuidance value={seoDescription} kind="description" />
         </div>
         {canWrite ? (
-          <Button type="submit" pending={save.isPending}>
-            {save.isPending ? "Saving" : "Save category"}
-          </Button>
+          <FormSaveActions
+            isNew={isNew}
+            primaryLabel="Save category"
+            isPending={save.isPending}
+            pendingIntent={pendingIntent}
+            onPrimaryClick={() => beginSubmit("save")}
+            onSaveAndNewClick={() => {
+              beginSubmit("saveAndNew");
+              void form.handleSubmit(onSubmit, () => clearPendingIntent())();
+            }}
+          />
         ) : (
           <p className="text-sm text-muted-foreground">
             You can view categories, but STAFF cannot change them.

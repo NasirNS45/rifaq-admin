@@ -4,15 +4,16 @@ import { useNavigate, useParams } from "react-router";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { FormSaveActions } from "@/components/FormSaveActions";
 import { ImageUploadField } from "@/components/ImageUploadField";
 import { FormSkeleton } from "@/components/loading";
 import { FieldError, PageHeader } from "@/components/PageHeader";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useBrand, useSaveBrand } from "@/hooks/useCatalog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { focusFormField, useSaveIntent } from "@/hooks/useSaveIntent";
 import { ApiError } from "@/lib/api";
 
 const schema = z.object({
@@ -27,6 +28,16 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+const DEFAULT_FORM_VALUES: FormValues = {
+  name: "",
+  slug: "",
+  description: "",
+  logo: "",
+  website_url: "",
+  is_active: true,
+  sort_order: 0,
+};
+
 export function BrandFormPage() {
   const { id } = useParams();
   const isNew = !id;
@@ -34,18 +45,11 @@ export function BrandFormPage() {
   const { canCreate, canUpdate } = usePermissions();
   const existing = useBrand(id);
   const save = useSaveBrand();
+  const { beginSubmit, consumeIntent, clearPendingIntent, pendingIntent } = useSaveIntent();
   const canWrite = isNew ? canCreate : canUpdate;
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      name: "",
-      slug: "",
-      description: "",
-      logo: "",
-      website_url: "",
-      is_active: true,
-      sort_order: 0,
-    },
+    defaultValues: DEFAULT_FORM_VALUES,
   });
   const logoValue = useWatch({ control: form.control, name: "logo" }) ?? "";
 
@@ -62,6 +66,13 @@ export function BrandFormPage() {
     });
   }, [existing.data, form]);
 
+  function submitForm(event: React.FormEvent<HTMLFormElement>) {
+    if (pendingIntent === null) {
+      beginSubmit("save");
+    }
+    void form.handleSubmit(onSubmit, () => clearPendingIntent())(event);
+  }
+
   async function onSubmit(values: FormValues) {
     try {
       const saved = await save.mutateAsync({
@@ -76,9 +87,23 @@ export function BrandFormPage() {
           sort_order: values.sort_order,
         },
       });
+      const intent = consumeIntent();
+      if (intent === "saveAndNew") {
+        if (isNew) {
+          toast.success("Brand added. Add the next one.");
+          form.reset(DEFAULT_FORM_VALUES);
+          focusFormField("name");
+          return;
+        }
+        toast.success("Brand updated.");
+        form.reset(DEFAULT_FORM_VALUES);
+        navigate("/brands/new");
+        return;
+      }
       toast.success(isNew ? "Brand added." : "Brand updated.");
       navigate(`/brands/${saved.id}`, { replace: true });
     } catch (error) {
+      clearPendingIntent();
       const message = error instanceof ApiError ? error.message : "Could not save this brand.";
       toast.error(message);
     }
@@ -101,7 +126,11 @@ export function BrandFormPage() {
         title={isNew ? "Add brand" : "Edit brand"}
         description="Use the label as it appears on the piece. This is not a claim of affiliation."
       />
-      <form className="space-y-5 border border-border bg-card p-6" noValidate onSubmit={form.handleSubmit(onSubmit)}>
+      <form
+        className="space-y-5 border border-border bg-card p-6"
+        noValidate
+        onSubmit={submitForm}
+      >
         <div className="space-y-2">
           <Label htmlFor="name">Name</Label>
           <Input id="name" disabled={!canWrite} {...form.register("name")} />
@@ -141,9 +170,17 @@ export function BrandFormPage() {
           </div>
         </div>
         {canWrite ? (
-          <Button type="submit" pending={save.isPending}>
-            {save.isPending ? "Saving" : "Save brand"}
-          </Button>
+          <FormSaveActions
+            isNew={isNew}
+            primaryLabel="Save brand"
+            isPending={save.isPending}
+            pendingIntent={pendingIntent}
+            onPrimaryClick={() => beginSubmit("save")}
+            onSaveAndNewClick={() => {
+              beginSubmit("saveAndNew");
+              void form.handleSubmit(onSubmit, () => clearPendingIntent())();
+            }}
+          />
         ) : (
           <p className="text-sm text-muted-foreground">You can view catalogue labels, but STAFF cannot change them.</p>
         )}

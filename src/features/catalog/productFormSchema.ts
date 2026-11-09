@@ -55,6 +55,41 @@ export const productFormSchema = z.object({
 
 export type ProductFormValues = z.infer<typeof productFormSchema>;
 
+export const DEFAULT_PRODUCT_FORM_VALUES: ProductFormValues = {
+  name: "",
+  slug: "",
+  sku: "",
+  brand_id: "",
+  category_id: "",
+  description: "",
+  short_description: "",
+  price: "",
+  original_price: "",
+  cost_price: "",
+  stock_quantity: 0,
+  low_stock_threshold: 2,
+  status: "DRAFT",
+  is_indexable: true,
+  fabric: "",
+  care_instructions: "",
+  authenticity_note: "",
+  pieces: "",
+  edit_note: "",
+  video_url: "",
+  keep_pre_order: false,
+  is_featured: false,
+  is_new: false,
+  is_sale: false,
+  is_just_in: false,
+  sort_order: 0,
+  seo_title: "",
+  seo_description: "",
+  images: [],
+  sizes_text: "",
+  colors_text: "",
+  collection_ids: [],
+};
+
 export function splitList(value: string): string[] {
   return value
     .split(/[\n,]/)

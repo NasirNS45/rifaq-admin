@@ -4,9 +4,9 @@ import { useNavigate, useParams } from "react-router";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { FormSaveActions } from "@/components/FormSaveActions";
 import { FormSkeleton } from "@/components/loading";
 import { FieldError, PageHeader } from "@/components/PageHeader";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCollections, useProducts } from "@/hooks/useCatalog";
 import { useDiscount, useSaveDiscount } from "@/hooks/useDiscounts";
 import { usePermissions } from "@/hooks/usePermissions";
+import { focusFormField, useSaveIntent } from "@/hooks/useSaveIntent";
 import { ApiError } from "@/lib/api";
 import type { DiscountType } from "@/types/api";
 
@@ -45,6 +46,18 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
+const DEFAULT_FORM_VALUES: FormValues = {
+  name: "",
+  discount_type: "PERCENTAGE",
+  value: "",
+  starts_at: "",
+  ends_at: "",
+  is_active: true,
+  description: "",
+  product_ids: [],
+  collection_ids: [],
+};
+
 function toLocalInput(iso: string | null) {
   if (!iso) return "";
   const date = new Date(iso);
@@ -68,22 +81,13 @@ export function DiscountFormPage() {
   const { canCreate, canUpdate } = usePermissions();
   const existing = useDiscount(id);
   const save = useSaveDiscount();
+  const { beginSubmit, consumeIntent, clearPendingIntent, pendingIntent } = useSaveIntent();
   const products = useProducts({ page: 1, limit: 100 });
   const collections = useCollections({ page: 1, limit: 100 });
   const canWrite = isNew ? canCreate : canUpdate;
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      name: "",
-      discount_type: "PERCENTAGE",
-      value: "",
-      starts_at: "",
-      ends_at: "",
-      is_active: true,
-      description: "",
-      product_ids: [],
-      collection_ids: [],
-    },
+    defaultValues: DEFAULT_FORM_VALUES,
   });
   const selectedProducts = useWatch({ control: form.control, name: "product_ids" }) ?? [];
   const selectedCollections = useWatch({ control: form.control, name: "collection_ids" }) ?? [];
@@ -103,6 +107,13 @@ export function DiscountFormPage() {
     });
   }, [existing.data, form]);
 
+  function submitForm(event: React.FormEvent<HTMLFormElement>) {
+    if (pendingIntent === null) {
+      beginSubmit("save");
+    }
+    void form.handleSubmit(onSubmit, () => clearPendingIntent())(event);
+  }
+
   async function onSubmit(values: FormValues) {
     try {
       const saved = await save.mutateAsync({
@@ -119,9 +130,23 @@ export function DiscountFormPage() {
           collection_ids: values.collection_ids,
         },
       });
+      const intent = consumeIntent();
+      if (intent === "saveAndNew") {
+        if (isNew) {
+          toast.success("Campaign added. Add the next one.");
+          form.reset(DEFAULT_FORM_VALUES);
+          focusFormField("name");
+          return;
+        }
+        toast.success("Campaign updated.");
+        form.reset(DEFAULT_FORM_VALUES);
+        navigate("/discounts/new");
+        return;
+      }
       toast.success(isNew ? "Campaign added." : "Campaign updated.");
       navigate(`/discounts/${saved.id}`, { replace: true });
     } catch (error) {
+      clearPendingIntent();
       const message = error instanceof ApiError ? error.message : "Could not save this campaign.";
       toast.error(message);
     }
@@ -148,7 +173,11 @@ export function DiscountFormPage() {
         title={isNew ? "Add campaign" : "Edit campaign"}
         description="Leave products and collections empty for a store-wide sale. If several campaigns match, the lowest selling price wins."
       />
-      <form className="space-y-5 border border-border bg-card p-6" noValidate onSubmit={form.handleSubmit(onSubmit)}>
+      <form
+        className="space-y-5 border border-border bg-card p-6"
+        noValidate
+        onSubmit={submitForm}
+      >
         <div className="space-y-2">
           <Label htmlFor="name">Name</Label>
           <Input id="name" disabled={!canWrite} {...form.register("name")} />
@@ -232,9 +261,17 @@ export function DiscountFormPage() {
           Active
         </label>
         {canWrite ? (
-          <Button type="submit" pending={save.isPending}>
-            {save.isPending ? "Saving" : "Save campaign"}
-          </Button>
+          <FormSaveActions
+            isNew={isNew}
+            primaryLabel="Save campaign"
+            isPending={save.isPending}
+            pendingIntent={pendingIntent}
+            onPrimaryClick={() => beginSubmit("save")}
+            onSaveAndNewClick={() => {
+              beginSubmit("saveAndNew");
+              void form.handleSubmit(onSubmit, () => clearPendingIntent())();
+            }}
+          />
         ) : (
           <p className="text-sm text-muted-foreground">You can view campaigns, but STAFF cannot change them.</p>
         )}
